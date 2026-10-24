@@ -85,16 +85,19 @@ describe('demo accounts and role workflows', () => {
     await user.click(screen.getByRole('button', { name: 'New harvest' })); await user.click(screen.getByRole('button', { name: 'Cancel' })); expect(screen.getByRole('heading', { name: '80 kg of tomatoes' })).toBeInTheDocument();
   });
   test('buyer validates, saves exact money, clears only after confirmation and refreshes', async () => {
-    const service = createDemoService(); const save = vi.spyOn(service, 'createOrder'); const user = start('/app/buyer', 'buyer', service);
+    const service = createDemoService(); const save = vi.spyOn(service, 'createOrder'); const user = start('/app/buyer?view=new', 'buyer', service);
     await user.click(await screen.findByRole('button', { name: 'Save order' })); expect(save).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Try sample' })); await user.click(screen.getByLabelText('I have checked the delivery pin.'));
     await user.dblClick(screen.getByRole('button', { name: 'Save order' })); await screen.findByText('Order saved successfully'); expect(save).toHaveBeenCalledOnce(); expect(save.mock.calls[0][0].pricePerKgMinor).toBe(22000);
     await user.click(screen.getByRole('button', { name: 'Refresh orders' }));
+    await user.click(screen.getByRole('button', { name: 'New order' }));
+    expect(screen.getByLabelText('Quantity needed (whole kg)')).toHaveValue(null);
+    await user.click(screen.getByRole('button', { name: 'Try sample' }));
     await user.click(screen.getByRole('button', { name: 'Clear form' })); await user.click(screen.getByRole('button', { name: 'Cancel' })); expect(screen.getByLabelText('Quantity needed (whole kg)')).toHaveValue(100);
     await user.click(screen.getByRole('button', { name: 'Clear form' })); await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Clear form' })); expect(screen.getByLabelText('Quantity needed (whole kg)')).toHaveValue(null);
   });
   test('transporter creates a trip, converts units, and toggles route view without fake geometry', async () => {
-    const service = createDemoService(); const save = vi.spyOn(service, 'createTrip'); const user = start('/app/transporter', 'transporter', service);
+    const service = createDemoService(); const save = vi.spyOn(service, 'createTrip'); const user = start('/app/transporter?view=new', 'transporter', service);
     await user.click(await screen.findByRole('button', { name: 'Try sample' })); await user.click(screen.getByLabelText('I have checked both route pins and the journey details.'));
     await user.click(screen.getByRole('button', { name: 'Save trip' })); expect(await screen.findByText('Demo trip saved successfully')).toBeInTheDocument(); expect(save.mock.calls[0][0]).toMatchObject({ maxExtraDistanceM: 10000, maxExtraTimeS: 3600, baseMinor: 35000, perKmMinor: 10000 });
     const hide = screen.getByRole('button', { name: 'Hide route' }); await user.click(hide); expect(screen.getAllByRole('button', { name: 'View route' })).toHaveLength(2);
@@ -104,7 +107,7 @@ describe('demo accounts and role workflows', () => {
   test('API-mode field errors remain visible with entries preserved', async () => {
     sessionStorage.setItem('cropconvoy.apiToken', 'test-token');
     const service = createHttpService(); vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url, options) => new Response(JSON.stringify(String(url).endsWith('/api/auth/me') ? { data: { id: DEMO_IDS.buyer, username: 'buyer', role: 'buyer' }, meta: { mode: 'live', persistence: 'postgres', requestId: 'test' } } : options?.method === 'POST' ? { error: { code: 'VALIDATION_ERROR', message: 'Please check this deadline', fields: [{ path: 'deadlineAt', message: 'Choose a later delivery deadline.' }] } } : { data: [], meta: { mode: 'stub', persistence: 'memory', requestId: 'test' } }), { status: String(url).endsWith('/api/auth/me') ? 200 : options?.method === 'POST' ? 422 : 200, headers: { 'Content-Type': 'application/json' } })));
-    const user = start('/app/buyer', 'buyer', service); await user.click(await screen.findByRole('button', { name: 'Try sample' })); await user.click(screen.getByLabelText('I have checked the delivery pin.')); await user.click(screen.getByRole('button', { name: 'Save order' })); expect((await screen.findAllByText('Choose a later delivery deadline.')).length).toBeGreaterThan(0); expect(screen.getByLabelText('Quantity needed (whole kg)')).toHaveValue(100);
+    const user = start('/app/buyer?view=new', 'buyer', service); await user.click(await screen.findByRole('button', { name: 'Try sample' })); await user.click(screen.getByLabelText('I have checked the delivery pin.')); await user.click(screen.getByRole('button', { name: 'Save order' })); expect((await screen.findAllByText('Choose a later delivery deadline.')).length).toBeGreaterThan(0); expect(screen.getByLabelText('Quantity needed (whole kg)')).toHaveValue(100);
   });
   test('extraction failure opens manual entry without publishing', async () => {
     sessionStorage.setItem('cropconvoy.apiToken', 'test-token');
@@ -142,7 +145,7 @@ describe('demo accounts and role workflows', () => {
     const user = start(`/app/farmer?listing=${listing.data.id}`, 'farmer', service); await user.click(await screen.findByRole('button', { name: 'Find a proposal' })); expect(await screen.findByRole('heading', { name: 'No proposal from this incomplete search.' })).toBeInTheDocument(); await user.click(screen.getByRole('button', { name: 'Try again' })); await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
   });
   test('transporter clear form is reversible until confirmed', async () => {
-    const user = start('/app/transporter', 'transporter'); await user.click(await screen.findByRole('button', { name: 'Try sample' })); await user.click(screen.getByRole('button', { name: 'Clear form' })); await user.click(await screen.findByRole('button', { name: 'Cancel' })); expect(screen.getByLabelText('Available capacity (whole kg)')).toHaveValue(120);
+    const user = start('/app/transporter?view=new', 'transporter'); await user.click(await screen.findByRole('button', { name: 'Try sample' })); await user.click(screen.getByRole('button', { name: 'Clear form' })); await user.click(await screen.findByRole('button', { name: 'Cancel' })); expect(screen.getByLabelText('Available capacity (whole kg)')).toHaveValue(120);
     await user.click(screen.getByRole('button', { name: 'Clear form' })); await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Clear form' })); expect(screen.getByLabelText('Available capacity (whole kg)')).toHaveValue(null);
   });
 });
@@ -195,4 +198,21 @@ test('farmer starts with harvests and can switch views without losing a draft', 
   await user.click(screen.getByRole('button', { name: 'My harvests' }));
   await user.click(screen.getByRole('button', { name: 'New harvest' }));
   expect(await screen.findByLabelText('Tell us about your harvest')).toHaveValue('My tomato harvest');
+});
+
+
+test.each([
+  { role: 'buyer', list: 'My orders', create: 'New order', field: 'Quantity needed (whole kg)', value: 42 },
+  { role: 'transporter', list: 'My trips', create: 'New trip', field: 'Available capacity (whole kg)', value: 75 },
+])('$role defaults to saved records and preserves drafts across view switches', async ({role, list, create, field, value}) => {
+  const user = start(`/app/${role}`, role);
+  expect(await screen.findByRole('button', { name: list })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.queryByLabelText(field)).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: create }));
+  await user.type(await screen.findByLabelText(field), String(value));
+  expect(screen.getByRole('button', { name: create })).toHaveClass('harvest-tab', 'active');
+  await user.click(screen.getByRole('button', { name: list }));
+  expect(screen.queryByLabelText(field)).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: create }));
+  expect(await screen.findByLabelText(field)).toHaveValue(value);
 });
