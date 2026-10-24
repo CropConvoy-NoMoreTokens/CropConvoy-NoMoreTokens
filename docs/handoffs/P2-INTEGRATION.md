@@ -1,6 +1,8 @@
 # P2 integration handoff
 
-P2 owns shared API wiring, environment, migrations, market, and the Gemini adapter. P1, P3, and P4 can integrate through the existing exported interfaces; P2 did not edit their modules or core/contracts.ts.
+Demo database login and API authorization were added later on `feat/demo-auth`; see [P2-AUTH-INTEGRATION.md](P2-AUTH-INTEGRATION.md). P1's API-mode login and bearer headers are now integrated on the same branch.
+
+P2 owns shared API wiring, environment, migrations, market, and the Gemini adapter. The P1 UI now calls the shared auth interface in API mode. P3/P4 modules and core/contracts.ts remain under their owners.
 
 ## Working local API
 

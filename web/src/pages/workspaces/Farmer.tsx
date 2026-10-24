@@ -12,7 +12,7 @@ import { LocationPicker } from '../../components/LocationPicker';
 import { ModeNotice } from '../Workspace';
 import Proposal from './Proposal';
 export default function Farmer() {
-  const { service, notify, remember } = useApp();
+  const { service, notify, remember, identity } = useApp();
   const [params, setParams] = useSearchParams();
   const [phase, setPhase] = useState<'describe' | 'review'>('describe');
   const [text, setText] = useState('');
@@ -70,7 +70,7 @@ export default function Farmer() {
   }
   function preparePublish(event: FormEvent) {
     event.preventDefault(); setError(undefined);
-    const result = listingSchema.safeParse({ demoFarmerId: DEMO_IDS.farmer, crop: form.crop, quantityKg: form.quantity ? Number(form.quantity) : NaN, pickup, readyAt: colomboToUtc(form.ready), minNetMinor: rupeesToMinor(form.minimum), confirmed });
+    const result = listingSchema.safeParse({ demoFarmerId: identity?.id ?? DEMO_IDS.farmer, crop: form.crop, quantityKg: form.quantity ? Number(form.quantity) : NaN, pickup, readyAt: colomboToUtc(form.ready), minNetMinor: rupeesToMinor(form.minimum), confirmed });
     const problems = result.success ? {} : validationErrors(result.error);
     if (!pinConfirmed) problems.pickupConfirmation = 'Confirm that the pickup pin is correct.';
     setErrors(problems);

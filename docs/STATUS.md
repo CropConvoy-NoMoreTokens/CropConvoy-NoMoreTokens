@@ -9,9 +9,9 @@ integration/dev-logistics combines the frontend dev branch, P2 market/platform, 
 | Logistics | Stored full routes, capacity/proximity/direction/road/timing checks, weight-distance-v2 fare and persistent quotes | Approved production routing provider |
 | Advocate | Full-snapshot hard-rule checks, quantity-distance money verification and code-selected best evaluated net | Live integrated model check |
 | Workflow | Request-scoped budgets, validated handoff, quote-bounded expiry, persistent plans, source freshness and conditional decisions | Hosted restart verification |
-| Database | Ordered migration ledger; 001 + 002 tested on dedicated local PostgreSQL | Apply reviewed migrations to team deployment database |
+| Database | Ordered migration ledger; initial, demo-auth and logistics migrations applied to the configured development database | Apply reviewed migrations to team deployment database |
 | Readiness | PostgreSQL source/plan/quote tables and kg-km tariff column required | Hosting proxy topology configuration |
-| Authentication | Demo role chooser only | Real identity/authorization outside MVP |
+| Authentication | Database-backed sessions and role/owner checks for three predefined public demo accounts in API mode | Private user registration and production identity management |
 | Deployment | Railway API/database and Vercel setup documented | Not deployed or pushed by this integration |
 
 Verification: 62 backend tests passed including optional PostgreSQL suites; 35 UI tests passed; API and UI production builds passed. Browser API-mode test used a real stored road route and generated a proposal, recorded farmer acceptance, and preserved it after an API restart. The local model adapter was intentionally unconfigured, so AI results were labelled deterministic fallback.

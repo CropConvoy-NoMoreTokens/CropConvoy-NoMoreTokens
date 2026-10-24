@@ -31,7 +31,7 @@ export function Layout() {
     ...faqs.map(f => ({ title: f.question, description: f.answer, href: `/?section=${f.id}` })), ...app.records,
   ];
   const matches = pages.filter(p => `${p.title} ${p.description}`.toLowerCase().includes(query.toLowerCase().trim()));
-  function signout() { app.logout(); navigate('/login'); }
+  function signout() { void app.logout().then(() => navigate('/login')); }
   return <>
     <a className="skip-link" href="#main-content" onClick={e => { e.preventDefault(); document.getElementById('main-content')?.focus(); }}>Skip to content</a>
     <motion.div className="scroll-progress" style={{ scaleX: reduced ? scrollYProgress : progress }} aria-hidden="true" />

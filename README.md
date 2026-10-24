@@ -2,7 +2,7 @@
 
 Starter for a four-person, six-hour harvest-to-buyer matching prototype. The project is structured so frontend, market/platform, logistics, and workflow work can start simultaneously.
 
-**Current state:** runnable scaffolding, not a completed backend. Listing/order CRUD uses temporary memory in stub mode. Extraction returns missing fields. Trip creation remains an explicit 503 stub. The default generation returns an incomplete empty result while market/logistics are stubs. P4 implements bounded quote review, memory/PostgreSQL plan repositories and safe decisions against injected modules; missing plans return 404. No live model, road provider, PostgreSQL market/logistics wiring, authentication, or deployment is connected.
+**Current state:** P1's UI, P2's PostgreSQL/Gemini market API, P3's route-aware logistics, and P4's persisted proposal workflow are integrated. With `DATABASE_URL` configured and migrations applied, API mode signs in through three predefined public demo accounts; see [the auth handoff](docs/handoffs/P2-AUTH-INTEGRATION.md). Production routing, private user registration, and hosted deployment remain unconfigured.
 
 ## Start locally
 
@@ -12,7 +12,7 @@ Terminal 1:
 ```powershell
 cd api
 npm ci
-Copy-Item .env.example .env
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
 npm run dev
 ```
 
@@ -20,19 +20,19 @@ Terminal 2, starting at the repo root:
 ```powershell
 cd web
 npm ci
-Copy-Item .env.example .env
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
 npm run dev
 ```
 
 Do not overwrite an existing .env. On macOS/Linux use `cp .env.example .env` when creating it for the first time.
 
-Open http://localhost:5173 and choose **Check connection**. API health is http://localhost:3001/health. The starter works without keys or PostgreSQL. `/ready` deliberately returns 503 while the app uses temporary repositories.
+Open http://localhost:5173 and choose **Check connection**. API health is http://localhost:3001/health. Local stub mode works without keys or PostgreSQL. API mode requires PostgreSQL, applied migrations and demo login; `/ready` returns 503 when required tables are missing.
 
 ## Structure
 
 ```text
 api/
-  db/migrations/001_initial.sql        # P2: four-table PostgreSQL bootstrap
+  db/migrations/                    # PostgreSQL bootstrap, auth and logistics migrations
   scripts/                            # P2: migration and schema export tools
   src/
     app.ts                            # P2: single route registration point
@@ -88,7 +88,7 @@ For database setup, read [api/db/README.md](api/db/README.md) and run `npm run d
 - LKR minor units: Rs. 220/kg is 22000, not 220. API dates are UTC ISO strings ending in Z; display Asia/Colombo.
 - Real road geometry is required before any live transport quote. Fixture coordinates are not a verified corridor.
 - Model suggestions cannot override crop, quantity, capacity, date, detour, or net-proceeds rules.
-- Farmer acceptance records pending buyer/transporter confirmations. No payments, stock reservation, live GPS, or secure role authorization is implemented.
+- Farmer acceptance records pending buyer/transporter confirmations. No payments, stock reservation, live GPS, or production identity management is implemented. The predefined demo credentials are public.
 - Use synthetic data. Keep stub/fallback status visible and secrets on the server.
 
 Pinned dependencies are recorded in each package and lockfile. Implementation references: [Express](https://expressjs.com/en/starter/installing/), [Vite](https://vite.dev/guide/), [Zod](https://zod.dev/basics), [node-postgres](https://node-postgres.com/features/queries). See the supplied plan for routing/deployment references; provider access and corridor validation remain kickoff work.

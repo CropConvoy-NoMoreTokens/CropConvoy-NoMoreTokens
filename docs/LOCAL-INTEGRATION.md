@@ -13,7 +13,7 @@ No remote branch was changed by the integration work.
 - Matched logistics hard-rule names with Advocate requirements, compared both price components, propagated fallback/search completeness and bounded plan expiry by quote expiry.
 - Avoided counting cheap proximity/capacity rejections against the six routed-combination limit.
 - Added migration 002 for tariff/quote storage and made the migration runner execute unapplied SQL files in order.
-- Kept demo and API modes separate. Login remains a public demo role selector, not secure authentication.
+- Kept demo and API modes separate. API mode now uses database-backed demo login and role/owner checks; the predefined credentials are public and are not production identities.
 
 ## Run locally
 
@@ -37,7 +37,7 @@ LLM_MODEL=<team model ID>
 No production routing URL or credentials are committed. Without LLM credentials, extraction asks for manual completion and market/logistics/advocate use explicitly labelled deterministic fallback. Routing/database failures never produce demo-success substitutes.
 
 From api/, run npm run db:migrate, then npm run dev.
-The migration runner applies 001 and 002 once using its ledger/transaction.
+The migration runner applies `001_initial.sql`, `002_demo_auth.sql`, and `002_weight_distance_logistics.sql` once each using its filename ledger and transaction.
 If the older standalone hybrid-v1 SQL was already applied to your database, review the upgrade-hybrid-v1.sql handoff and migration ledger first rather than blindly applying the fresh 002.
 
 Create web/.env.local with:
