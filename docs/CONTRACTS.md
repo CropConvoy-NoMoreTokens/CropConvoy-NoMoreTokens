@@ -43,6 +43,8 @@ The browser restores API identity through /api/auth/me, attaches the session tok
 
 ## Endpoint agreement
 
+The Insights analytical extension uses a separate Python ML service, not these Express routes. It returns raw JSON rather than the marketplace envelope, uses synthetic observations, supports fractional analytical yields, and requires verified CUDA for predictions. Its browser adapter uses VITE_ML_API_BASE_URL and does not forward marketplace bearer tokens. Predictions never modify quote snapshots, orders, listing minima or booking decisions. See [ML endpoint contracts](../ml/README.md). Marketplace units and hard-rule validation remain unchanged.
+
 POST body schemas are in contracts/schemas.json. The return type below is inside the `data` envelope.
 
 | Method/path | Input | data type / behavior | Owner |

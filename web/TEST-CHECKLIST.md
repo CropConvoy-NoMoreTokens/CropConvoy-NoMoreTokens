@@ -108,4 +108,55 @@ These are local lab measurements, not hosted field data or an INP measurement. M
 
 The browser responsive checks use real same-origin iframe viewports in qa/responsive.html, not physical phones. The in-app browser did not apply a native zoom shortcut; 200% text enlargement and narrow layouts were verified instead. Keyboard paths are covered through Testing Library and real browser Escape/focus checks. Reduced motion and tile failure are exercised through controlled component tests.
 
-Demo database login, API token restoration and logout are implemented and tested with mocked browser responses; P2 separately verified the live auth endpoints against development Neon. Real routed quotes, persisted proposals, multi-party confirmations, production map-provider rollout and deployment remain unfinished. Mocked API failure/geometry tests do not claim those services are complete. The theme and generated media are local deliverables; no site was published.
+Live backend extraction, real routed quotes, PostgreSQL restart persistence, multi-party confirmations, authentication, production map-provider rollout and deployment remain the assigned backend/hosting work. Mocked API failure/geometry tests do not claim those services are complete. The theme and generated media are local deliverables; no site was published.
+
+## Prediction demo regression pass — 24 October 2026
+
+The ML extension was checked separately from the marketplace backend. Final automated results:
+64 ML tests, 49 frontend tests, production build passed; 108 live produce/market/horizon requests
+passed with verified cuda:0. Both models were retrained once in a visible PowerShell terminal.
+
+| Control / state | Expected result | Observed |
+|---|---|---|
+| Price forecast / What to plant tabs | Select the correct tool; Arrow keys, Home and End move/select tabs | Automated; both tools walked through in browser |
+| GPU ready disclosure | Show actual verified device, cutoff and feature version | Browser + live health + CUDA config tests |
+| Check again / service retry | Retry readiness, preserve inputs, never fake results | Automated health failure/retry |
+| Six image radio cards | Select correct produce with visible checked/focus state | Automated all six options; browser carrot selection/update |
+| Market and forecast month selectors | Use service catalog values and dates | Automated + browser |
+| Update forecast | Explicit submission; disabled while pending; announce/focus result | Automated + browser live carrot result |
+| Duplicate submissions | One request while pending | Automated |
+| Changed selections | Keep prior result and show outdated notice until updated | Automated |
+| Late or canceled response | Never overwrite another workflow or newer submitted result | Deferred-response tests |
+| 12 months / 3 years / All history | Change chart/table history range | Automated range/table checks |
+| View / Hide price table | Toggle accessible historical/forecast table | Automated + browser |
+| Chart forecast segment | Use calendar-month positions and one forecast point; no invented intermediate prices | Source review + browser chart |
+| Copy forecast | Copy summary including synthetic label; expose fallback on clipboard failure | Shared clipboard success/failure tests |
+| Planting month / region / market | Preserve choices and require explicit comparison | Automated + browser default results |
+| Area / soil pH | Preserve editing; validate area 0.1–100 and pH 0–14 | HTTP + form tests; NaN rejected |
+| Soil / irrigation | Match eligibility and yield inputs; no automatic prediction on edits | Automated API/form tests |
+| Assumptions & costs | Expand defaults; validate and send zero/nonnegative overrides | HTTP + interaction tests |
+| Compare planting options | Show success, pending, previous/error states without duplicate submissions | Automated |
+| Financial breakdown | Expand exact rounded money line items and dates | Automated + browser |
+| Positive top crop | Show Recommended under these assumptions only for positive stressed return | Automated + live default comparison |
+| Zero / negative return | Show Break-even option / Lowest projected loss; never recommend a loss | Automated |
+| No eligible crops | Empty state with individual exclusion reasons | Automated + prior browser clay scenario |
+| Bad month / negative area/cost / unknown fields | HTTP 422 with useful fields, never 500 | Automated HTTP + live probes |
+| Unsupported harvest horizon | Exclude crop with explanation; never substitute latest price | Automated |
+| GPU/model unavailable | HTTP 503; retain history where data remains valid | Automated |
+| Missing/corrupt historical rows | Fail readiness for duplicates, gaps, missing series, invalid prices/future data | Automated |
+| Failed produce image | Show named fallback instead of broken image | Automated |
+| Reduced motion | Keep content visible and remove nonessential motion | Component regression + CSS |
+| Responsive layouts | No horizontal overflow or visible broken images | Real browser at 360, 390, 768, 1440 pixels in both themes |
+| Native 200% browser zoom | Check native zoom with readable controls and no overlap | Not verified: in-app shortcut had no effect; browser control was then disabled |
+| 200% text QA helper | Manual text enlargement remains available in qa/responsive.html for both tools | Helper updated; new prediction-page enlargement pass not completed |
+
+Lighthouse mobile audits measured:
+price — performance 88, accessibility 100, best practices 100, SEO 100, CLS 0;
+planting — performance 86, accessibility 100, best practices 100, SEO 100, CLS 0.112.
+An additional catalog-loading space reservation was added after the planting audit.
+That last layout adjustment was build/test verified but could not receive another browser audit,
+because local browser use was disabled in Work settings.
+
+Audit JSON/HTML, responsive screenshots/checks and final live API summary are in ignored ml/logs/.
+The viewport override could not be reset after browser access was disabled; last test width was 1440px.
+No physical-device, live-market accuracy or native-zoom result is claimed.

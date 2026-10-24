@@ -48,6 +48,12 @@ References: [Render Express build/start commands](https://render.com/docs/deploy
 
 ## Verification
 
+### Separate prediction service
+
+The Insights route calls the Python service in ml/, using `VITE_ML_API_BASE_URL`. This is separate from `VITE_API_BASE_URL` and the Render Express service; deploying the Node API does not deploy ML. The service requires verified NVIDIA CUDA and trained artifacts. An ordinary CPU-only instance cannot provide predictions, and missing GPU/model readiness returns 503 while valid catalog/history remain available.
+
+For hosted Insights, deploy the ML service on compatible GPU infrastructure, configure HTTPS, allow the exact frontend origin in that service's CORS policy (its current defaults allow local development origins), set `VITE_ML_API_BASE_URL` in Vercel and rebuild. Do not use localhost for a public frontend or point the ML URL at the marketplace API. No GPU service or infrastructure was provisioned by this integration. See [ML README](../ml/README.md) for runtime and validation requirements.
+
 Run both production builds and suites independently. On deployed URLs, verify login/session restoration/logout, role and ownership checks, CORS/request IDs, listing/order/trip creation, returned full route geometry, versioned carrying/detour charges, generation/retrieval, expiry/stale conflicts, pending farmer acceptance and persistence after an API process restart. Pending proposals and farmer acceptance reserve nothing. Only final confirmation after both buyer and driver approval allocates demand/capacity transactionally; see [booking workflow](BOOKING-WORKFLOW.md). Tests and builds were not rerun during the latest auth rebase; earlier results below are historical.
 
 `P4_TEST_DATABASE_URL=<disposable local PostgreSQL> npm run api:integration-check` runs the bounded real-provider check using configured routing/Gemini and a generated local database. It never writes the hosted DATABASE_URL and removes its local database afterward. The local role needs CREATE DATABASE permission. Ordinary automated tests mock only external provider responses in the combined real-module flow.
