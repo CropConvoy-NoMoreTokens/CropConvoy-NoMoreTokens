@@ -2,7 +2,7 @@
 
 Starter for a four-person, six-hour harvest-to-buyer matching prototype. The project is structured so frontend, market/platform, logistics, and workflow work can start simultaneously.
 
-**Current state:** runnable scaffolding, not a completed backend. Listing/order CRUD uses temporary memory in stub mode. Extraction returns missing fields. Trip creation and plan decisions return explicit 503 stubs. Generation returns an incomplete empty result. No live model, road provider, PostgreSQL repositories, real plans, authentication, or deployment is connected.
+**Current state:** P1's demo UI and P2's PostgreSQL/Gemini market API are integrated. With `DATABASE_URL` configured and migrations applied, the API requires login with one of three predefined public demo accounts; see [the auth handoff](docs/handoffs/P2-AUTH-INTEGRATION.md). The frontend still needs P1's API-mode login integration. Trip creation and plan decisions remain P3/P4 stubs, and there is no real road provider, persisted proposal flow, private user registration, or deployment.
 
 ## Start locally
 

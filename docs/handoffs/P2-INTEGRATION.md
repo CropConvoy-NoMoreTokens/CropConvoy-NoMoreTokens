@@ -1,5 +1,7 @@
 # P2 integration handoff
 
+Demo database login and API authorization were added later on `feat/demo-auth`; see [P2-AUTH-INTEGRATION.md](P2-AUTH-INTEGRATION.md). P1 must connect API-mode login and bearer headers before the current frontend can use PostgreSQL-backed routes.
+
 P2 owns shared API wiring, environment, migrations, market, and the Gemini adapter. P1, P3, and P4 can integrate through the existing exported interfaces; P2 did not edit their modules or core/contracts.ts.
 
 ## Working local API

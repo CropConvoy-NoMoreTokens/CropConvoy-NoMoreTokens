@@ -33,9 +33,10 @@ export function createDependencies(input: { databaseUrl?: string; stub: boolean;
       async query(sql, values) { if (!pool) return pending('Database connection'); return pool.query(sql, values); },
       async ping() {
         if (!pool) return pending('Database connection');
-        const { rows } = await pool.query<{ listings: string | null; orders: string | null; trips: string | null; plans: string | null }>(
+        const { rows } = await pool.query<Record<string, string | null>>(
           `SELECT to_regclass('public.listings') AS listings, to_regclass('public.orders') AS orders,
-            to_regclass('public.trips') AS trips, to_regclass('public.plans') AS plans`);
+            to_regclass('public.trips') AS trips, to_regclass('public.plans') AS plans,
+            to_regclass('public.demo_users') AS demo_users, to_regclass('public.demo_sessions') AS demo_sessions`);
         if (!rows[0] || Object.values(rows[0]).some(value => value === null))
           throw new Error('Initial database migration has not been applied');
       },
