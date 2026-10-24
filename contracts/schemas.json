@@ -639,7 +639,12 @@
       },
       "status": {
         "type": "string",
-        "const": "open"
+        "enum": [
+          "open",
+          "closed",
+          "booked",
+          "withdrawn"
+        ]
       },
       "createdAt": {
         "type": "string",
@@ -680,8 +685,8 @@
       },
       "remainingKg": {
         "type": "integer",
-        "minimum": 1,
-        "maximum": 2147483647
+        "minimum": 0,
+        "maximum": 9007199254740991
       },
       "pricePerKgMinor": {
         "type": "integer",
@@ -723,7 +728,12 @@
       },
       "status": {
         "type": "string",
-        "const": "open"
+        "enum": [
+          "open",
+          "closed",
+          "booked",
+          "withdrawn"
+        ]
       },
       "createdAt": {
         "type": "string",
@@ -801,8 +811,8 @@
       },
       "availableKg": {
         "type": "integer",
-        "minimum": 1,
-        "maximum": 2147483647
+        "minimum": 0,
+        "maximum": 9007199254740991
       },
       "corridorM": {
         "type": "integer",
@@ -850,7 +860,12 @@
       },
       "status": {
         "type": "string",
-        "const": "open"
+        "enum": [
+          "open",
+          "closed",
+          "booked",
+          "withdrawn"
+        ]
       },
       "createdAt": {
         "type": "string",
@@ -1225,7 +1240,12 @@
         "enum": [
           "proposed",
           "farmer_accepted_pending_confirmations",
-          "rejected"
+          "rejected",
+          "confirmed",
+          "declined",
+          "expired",
+          "unavailable",
+          "superseded"
         ]
       },
       "quoteSnapshot": {
@@ -1628,7 +1648,12 @@
               },
               "status": {
                 "type": "string",
-                "const": "open"
+                "enum": [
+                  "open",
+                  "closed",
+                  "booked",
+                  "withdrawn"
+                ]
               },
               "createdAt": {
                 "type": "string",
@@ -1668,8 +1693,8 @@
               },
               "remainingKg": {
                 "type": "integer",
-                "minimum": 1,
-                "maximum": 2147483647
+                "minimum": 0,
+                "maximum": 9007199254740991
               },
               "pricePerKgMinor": {
                 "type": "integer",
@@ -1711,7 +1736,12 @@
               },
               "status": {
                 "type": "string",
-                "const": "open"
+                "enum": [
+                  "open",
+                  "closed",
+                  "booked",
+                  "withdrawn"
+                ]
               },
               "createdAt": {
                 "type": "string",
@@ -1788,8 +1818,8 @@
               },
               "availableKg": {
                 "type": "integer",
-                "minimum": 1,
-                "maximum": 2147483647
+                "minimum": 0,
+                "maximum": 9007199254740991
               },
               "corridorM": {
                 "type": "integer",
@@ -1837,7 +1867,12 @@
               },
               "status": {
                 "type": "string",
-                "const": "open"
+                "enum": [
+                  "open",
+                  "closed",
+                  "booked",
+                  "withdrawn"
+                ]
               },
               "createdAt": {
                 "type": "string",
@@ -1940,6 +1975,71 @@
           "deterministic_fallback"
         ]
       },
+      "booking": {
+        "type": "object",
+        "properties": {
+          "buyer": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "driver": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "approvalExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "farmerAcceptedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "buyerDecidedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "driverDecidedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "buyerDecidedBy": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "driverDecidedBy": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "confirmedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "resolutionCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "buyer",
+          "driver",
+          "approvalExpiresAt"
+        ],
+        "additionalProperties": false
+      },
       "searchComplete": {
         "type": "boolean"
       }
@@ -2007,7 +2107,12 @@
                 "enum": [
                   "proposed",
                   "farmer_accepted_pending_confirmations",
-                  "rejected"
+                  "rejected",
+                  "confirmed",
+                  "declined",
+                  "expired",
+                  "unavailable",
+                  "superseded"
                 ]
               },
               "quoteSnapshot": {
@@ -2410,7 +2515,12 @@
                       },
                       "status": {
                         "type": "string",
-                        "const": "open"
+                        "enum": [
+                          "open",
+                          "closed",
+                          "booked",
+                          "withdrawn"
+                        ]
                       },
                       "createdAt": {
                         "type": "string",
@@ -2450,8 +2560,8 @@
                       },
                       "remainingKg": {
                         "type": "integer",
-                        "minimum": 1,
-                        "maximum": 2147483647
+                        "minimum": 0,
+                        "maximum": 9007199254740991
                       },
                       "pricePerKgMinor": {
                         "type": "integer",
@@ -2493,7 +2603,12 @@
                       },
                       "status": {
                         "type": "string",
-                        "const": "open"
+                        "enum": [
+                          "open",
+                          "closed",
+                          "booked",
+                          "withdrawn"
+                        ]
                       },
                       "createdAt": {
                         "type": "string",
@@ -2570,8 +2685,8 @@
                       },
                       "availableKg": {
                         "type": "integer",
-                        "minimum": 1,
-                        "maximum": 2147483647
+                        "minimum": 0,
+                        "maximum": 9007199254740991
                       },
                       "corridorM": {
                         "type": "integer",
@@ -2619,7 +2734,12 @@
                       },
                       "status": {
                         "type": "string",
-                        "const": "open"
+                        "enum": [
+                          "open",
+                          "closed",
+                          "booked",
+                          "withdrawn"
+                        ]
                       },
                       "createdAt": {
                         "type": "string",
@@ -2721,6 +2841,71 @@
                   "live",
                   "deterministic_fallback"
                 ]
+              },
+              "booking": {
+                "type": "object",
+                "properties": {
+                  "buyer": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "approved",
+                      "rejected"
+                    ]
+                  },
+                  "driver": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "approved",
+                      "rejected"
+                    ]
+                  },
+                  "approvalExpiresAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "farmerAcceptedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "buyerDecidedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "driverDecidedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "buyerDecidedBy": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "driverDecidedBy": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "confirmedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "resolutionCode": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "buyer",
+                  "driver",
+                  "approvalExpiresAt"
+                ],
+                "additionalProperties": false
               },
               "searchComplete": {
                 "type": "boolean"

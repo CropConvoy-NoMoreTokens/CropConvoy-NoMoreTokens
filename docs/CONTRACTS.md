@@ -166,3 +166,7 @@ Current quote schemas require pricingVersion=weight-distance-v2, ratePerKgKmMino
 ### Farmer list ownership after auth integration
 
 Authenticated `GET /api/listings` derives the farmer ID from the server session; any supplied `demoFarmerId` is ignored. Requests without a session receive 401 and other roles receive 403. Only the keyless in-memory stub retains the required UUID query parameter. The frontend uses the signed-in profile ID for its list request. This supersedes earlier query-based ownership notes.
+
+### Three-party booking workflow
+
+See BOOKING-WORKFLOW.md for the current history/approval API, role-specific projections, expanded statuses, expiry rules and atomic allocation semantics. `booking` is optional on legacy plans and persisted under `review.booking`. Farmer acceptance remains pending; only buyer + driver approval and a successful transaction yield `confirmed`. Stored order/trip counters may be zero; creation inputs remain positive. Migration 003 and API restart are required.

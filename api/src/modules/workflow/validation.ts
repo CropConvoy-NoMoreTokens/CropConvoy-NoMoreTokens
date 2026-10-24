@@ -16,6 +16,7 @@ export function parseSources(input: Plan['sourceSnapshot']): Plan['sourceSnapsho
 export function sourceRejectionCodes(quote: QuoteSnapshot, sources: Plan['sourceSnapshot']): string[] {
   const { listing, order, trip } = sources;
   const codes = quoteRejectionCodes(listing, quote);
+  if(listing.status!=='open' || order.status!=='open' || trip.status!=='open') codes.push('SOURCE_NOT_OPEN');
   if (quote.listingId !== listing.id || quote.orderId !== order.id || quote.tripId !== trip.id ||
       listing.crop !== order.crop || quote.pricePerKgMinor !== order.pricePerKgMinor ||
       quote.ratePerKgKmMinor !== trip.ratePerKgKmMinor || quote.pricingVersion !== trip.pricingVersion ||
