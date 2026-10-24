@@ -35,7 +35,7 @@ test('starter endpoints validate requests, expose stubs, and never fabricate rou
   assert.equal(result.meta.mode, 'stub');
   assert.equal((await post('/api/trips', fixture.tripInput)).status, 503);
   assert.equal((await post('/api/plans/generate', { listingId: fixture.ids.listingId })).status, 404);
-  assert.equal((await post('/api/plans/' + fixture.ids.planId + '/decision', { decision: 'accept' })).status, 503);
+  assert.equal((await post('/api/plans/' + fixture.ids.planId + '/decision', { decision: 'accept' })).status, 404);
   assert.equal((await fetch(base + '/health', { headers: { Origin: 'https://unapproved.example' } })).status, 403);
   assert.equal((await fetch(base + '/missing')).status, 404);
 });

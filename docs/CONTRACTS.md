@@ -1,4 +1,4 @@
-# Contract agreement v0.1
+# Contract agreement v0.2 — P4 integration proposal
 
 P4 is the contract owner. The starter defines the initial agreement; the team should review it before splitting work. API types/validators live in api/src/core/contracts.ts. JSON schemas are exported to contracts/schemas.json. All owners must agree before changing a field or signature. No shared workspace package or production import outside api/ or web/.
 
@@ -43,10 +43,10 @@ POST body schemas are in contracts/schemas.json. The return type below is inside
 | GET /api/orders | none | Order[] | P2 |
 | POST /api/orders | OrderInput | Order; 201 | P2 |
 | GET /api/trips | none | Trip[] | P3 |
-| POST /api/trips | TripInput | Trip with persisted full road geometry; 201, currently 503 | P3 |
+| POST /api/trips | TripInput | Trip with persisted full road geometry; 201; 503 when routing/storage is unavailable | P3 |
 | POST /api/plans/generate | `{listingId}` | GenerationResult | P4 |
 | GET /api/plans/:id | UUID path | Plan or 404 | P4 |
-| POST /api/plans/:id/decision | `{decision:'accept'\|'reject'}` | Updated Plan; currently 503 | P4 |
+| POST /api/plans/:id/decision | `{decision:'accept'\|'reject'}` | Updated Plan; 404 for missing plan, 409 for stale/expired/conflicting decision | P4 |
 
 Listing/Order responses add `id`, `status`, and `createdAt` to their inputs. Trip adds those plus `routeGeoJSON`, `routeDistanceM`, `routeDurationS`, `routeProvider`, `routeProfile`. Listing's `confirmed` is the validated publication input, mapped to seller_declared in the database.
 
@@ -80,15 +80,63 @@ Dependencies expose `db`, `llm`, `routing`, `clock`, `mode`, `persistence`, `max
 
 ## Quote handoff
 
-LogisticsResult contains quote IDs and summaries. LogisticsService.getQuote(quoteId) returns the authoritative full QuoteSnapshot; P3 owns its implementation and backing repository. Workflow loads those snapshots and the listing into ReviewInput (`{listing, quotes}`) for advocate review. P4 revalidates source IDs, rule outcomes and amounts, then persists the snapshot with the Plan. The initial QuoteSnapshot/Plan types are in contracts.ts; full runtime validators remain P4 work. Do not compute a recommendation using the summary alone or let the browser supply authoritative snapshots. For isolated tests, P4 supplies a fake LogisticsService including getQuote; no live routing is required.
+LogisticsResult contains quote IDs and summaries. LogisticsService.getQuote(quoteId) returns the authoritative full QuoteSnapshot; P3 owns its implementation and backing repository. Workflow loads those snapshots and the listing into ReviewInput (`{listing, quotes}`) for advocate review. P4 revalidates source IDs, rule outcomes and amounts, then persists the snapshot with the Plan. QuoteSnapshot, Plan and GenerationResult runtime validators are implemented in contracts.ts. P3's weight-distance-v2 fields and required hard-rule names are integrated below; future fare/version changes require coordination. Do not compute a recommendation using the summary alone or let the browser supply authoritative snapshots. For isolated tests, P4 supplies a fake LogisticsService including getQuote; no live routing is required.
 
-GenerationResult: `{outcome, plan, alternatives, rejections, trace, searchComplete}`. `plan` is null unless a real proposal has been validated and saved. The starter returns no_feasible_plan with searchComplete=false and BACKEND_PENDING context; do not show this as a completed real search. Trace contains observable actions/outcomes, never hidden model reasoning.
+GenerationResult: `{outcome, plan, alternatives, rejections, trace, searchComplete, mode}`. `plan` is null unless a real proposal has been validated and saved. The default stub services return no_feasible_plan with searchComplete=false and mode=stub; do not show this as a completed real search. Trace contains observable actions/outcomes, never hidden model reasoning.
 
 ## Coordination limits and decisions
 
 - At most 2 model turns per role; 3 buyer candidates; 6 routed combinations total; 1 alternative attempt.
-- A maximum 45-second generation deadline; propagate AbortSignal to every model/routing request. P4 still needs to implement hard deadline enforcement and partial-result handling.
+- A maximum 45-second generation deadline is enforced with a wall-clock timer and abort races, including adapters that ignore cancellation. Search uses 90% of the deadline, reserving the remainder for saving validated partial results. Model/routing calls receive AbortSignal through the request-scoped adapters.
 - Hard filters: exact crop, sufficient demand, partial-fill policy, sufficient trip capacity, simple route, pickup before delivery, snap/corridor tolerances, readiness, deadline, detour, minimum net.
 - Confirm interpretation of allowsPartial at kickoff: the plan's core scope requires it enabled for candidate orders. Do not silently broaden policy based on an exact-quantity order.
-- Net = quantity × unit price − transport. Transport = base + round(extra meters / 1000 × per-km rate) + handling. Price only the incremental detour.
+- Net = quantity × unit price − transport. Transport = base + round(quantity kg × routeCarryDistanceM / 1000 × ratePerKgKmMinor) + round(extraDistanceM / 1000 × perKmMinor) + handling. New trips and quotes require pricingVersion=weight-distance-v2; perKmMinor remains the detour rate. Carrying distance follows the original stored road route between pickup/delivery projections, excluding upstream/downstream travel.
 - Plan states: proposed → farmer_accepted_pending_confirmations or rejected. Before acceptance, check expiry and current source records against the quote. Repeated same decision returns same state; conflicting decisions return 409. No demand/capacity decrement.
+
+
+## P4 runtime and persistence additions (P2/P3 review required)
+
+Service method signatures are preserved. New trip/quote payloads require the explicit weight-distance-v2 rate/version/components; obsolete tariffs are not silently accepted or converted. Plan adds `sourceSnapshot: {listing, order, trip}`, `mode`, and optional `searchComplete`; GenerationResult adds `mode`. HTTP workflow metadata uses the result/stored mode so fallback is visible after retrieval/restart. P1 must display amounts from `plan.quoteSnapshot`, and show `searchComplete=false` as an incomplete bounded evaluation. See `contracts/fixtures/workflow-responses.json` for synthetic success, empty and error envelopes.
+
+All `ruleOutcomes` must be true and include these canonical integrated P3 keys: `crop`, `demand`, `partialFill`, `capacity`, `simpleRoute`, `pickupBeforeDelivery`, `corridor`, `snapping`, `readiness`, `deadline`, `detourDistance`, `detourTime`. Missing outcomes fail closed. P3 remains responsible for genuine road geometry, projection/direction, corridor and snapping validation; P4 independently verifies IDs, source facts, demand, partial-fill permission, capacity, times, detour measurements and safe money math. `extraTimeS` includes operational overhead and must be at least the increase in driving duration. Additional P3 outcomes such as providerProfile/direction/extraTime must also be true when present.
+
+P4 policy: allowsPartial must be true even for an exact-quantity order. Proposal expiry is the earliest of the authoritative quote expiry, creation + 15 minutes, authoritative quote generation + 15 minutes, and pickup time. P3 defaults to a five-minute quote lifetime bounded by departure and buyer deadline. Both service and conditional SQL transitions enforce the stored quote expiry independently of the plan expiry. Quotes generated before the current evaluation began, in the future, or already expired are rejected. Workflow also compares sources captured before evaluation with sources re-read after quote lookup; changes fail closed. Acceptance compares the complete current listing/order/trip with the stored source snapshot; a changed field requires regeneration. Repeated decisions return the original terminal plan, including after expiry. Rejection checks expiry; acceptance also checks source freshness. Decisions never change source quantities.
+
+The existing plans table suffices: `quote_snapshot` stores the full quote. The internal `review` JSONB stores `{...ReviewResult, sourceSnapshot, mode, searchComplete}`; the repository maps this into the separate public fields and validates on read. No schema migration is needed for P4. Existing starter has no stored plans to backfill. P3 owns durable logistics_quotes storage; a new generation-scoped logistics instance must share P3's persistent repository. Acceptance uses the stored plan quote even if P3's temporary quote cache has gone away.
+
+The app supplies `logisticsForGeneration(scopedDeps)` as the optional fourth workflow factory argument using P3's existing factory. Integration tests may inject logistics and its scoped factory through the optional createApp options. All P3 model/routing work must use scopedDeps; the shared wrapper allows at most two model turns per role, six route calls across both batches, and two simultaneous route calls. Without this wiring, non-stub generation with candidates returns 503 `BUDGET_WIRING_REQUIRED`. Market and advocate use the same scoped adapters. Search evaluates at most two buyers initially and the third in at most one alternative batch when needed. Only the highest feasible net in the evaluated set is selected; at most one additional evaluated quote is returned. This is never a global optimum claim.
+
+Database and source-repository interfaces currently lack AbortSignal parameters. P4 races those promises against the deadline, but cannot physically cancel an in-flight SQL query or undo a late insert. P2 must add cancellable repository/query adapters or server-side query timeouts for resource cancellation; the workflow response deadline is already bounded. An uncancellable insert finishing after the deadline may leave an unreturned proposed record; it cannot change source quantities or make a booking.
+
+Model adapter output for advocate is the strict normalized tool call `{name:'review_quotes', arguments:{selectedQuoteId: UUID|null, requestAlternative:boolean}}`. Unknown tool names, unknown/lower-net IDs and invalid JSON receive at most one repair, then code review with `MODEL_FALLBACK`. All explanations/traces are generated from validated observable outcomes, never model reasoning. A model cannot authorize or override a business rule.
+
+Regenerate the complete reference pack from api/: `npm run contracts:export`. The existing exporter now includes P4 result schemas. The old supplemental P4 command remains compatible but is unnecessary. JSON Schema describes structure; arithmetic and cross-record invariants also run in code.
+
+
+## Rebased UI integration
+
+New proposals persist searchComplete with the selected plan so GET/decision responses retain the incomplete-search warning after reload. This field is optional only for older stored proposals. Its absence means unknown completeness, never true. The new UI mirrors sourceSnapshot/mode/searchComplete without importing API code. Demo geometry remains nullable and explicitly labeled; API quote validators continue to require real geometry.
+
+The proposal card uses the stored listing minimum/pickup, order delivery and trip endpoints. It displays returned base/modified geometry, preserves fallback metadata if the listing load completes later, disables expired/conflicting decisions, and removes an old plan URL when regeneration returns no plan. Contract reference responses are copied into web/src/test/fixtures for self-contained browser tests; an API test verifies that copy remains synchronized and schema-valid. No production dependency crosses service roots.
+
+The UI defaults to VITE_DATA_MODE=demo; set VITE_DATA_MODE=api and VITE_API_BASE_URL to test HTTP responses, then restart Vite. P2 market/Gemini/PostgreSQL adapters and workflow application wiring are integrated. P3 logistics/routing is integrated. An unset/unavailable routing provider returns an incomplete result with routing dependency rejection codes, never synthetic success.
+
+
+## P2 integration boundary
+
+The advocate consumes P2's normalized tool response `{name, arguments}`; only `name:'review_quotes'` is allowed. Provider-specific response parsing stays in core/llm.ts. Full JSON Schema tool parameters are sent using Gemini's parametersJsonSchema field, not its older OpenAPI parameters field. Workflow calls the exported marketUsedFallback helper after validating candidate output, marks generation/stored-plan mode deterministic_fallback, and records a fixed observable market fallback event. This also handles invalid candidate IDs when the provider call itself succeeded. Workflow route handlers set res.locals.responseMode explicitly, matching P2's reply helper for generation/retrieval/decisions.
+
+The shared PostgreSQL pool config now gives address attempts at least 2 seconds and overall connection setup 20 seconds, retaining address failover and TLS verification. API pools retain their normal concurrency; migrations use one connection. No application .env is rewritten. Physical cancellation of running SQL remains limited by the current Database interface as documented above.
+
+The local combined HTTP test uses the real app, P2 repositories/market/Gemini parser and P4 advocate/workflow, restarts the API process against a uniquely named disposable database, and validates persisted proposals/decisions. Gemini and OSRM-compatible HTTP replies are synthetic in the combined test; actual market/logistics/advocate/workflow repositories and services execute; this does not validate live AI availability or real road feasibility. Routing absence/outages and true no-road-route outcomes are tested separately: outages are incomplete, while a fully evaluated NoRoute rejection is complete.
+
+Gemini tool schema reference: https://googleapis.github.io/js-genai/release_docs/interfaces/types.FunctionDeclaration.html#parametersJsonSchema
+
+
+## Integrated logistics diagnostics and deadlines
+
+Workflow consumes getRunDiagnostics using the same search AbortSignal across alternative attempts. Diagnostics can lower searchComplete or mark deterministic_fallback even if the provider transport succeeded. Cumulative observable diagnostics are deduplicated. Model-generated logistics explanation text is replaced with a fixed public outcome; it is never persisted as hidden reasoning or allowed to overflow the trace schema.
+
+Search routing/model work stops at 90% of the total deadline. The remaining deadline permits P3 to return already validated/saved quotes and P4 to load authoritative snapshots and persist a partial plan. No further routing/model work starts after the search deadline. Cheap physical prefilter rejections do not count toward the six routed-combination cap. Every actual route attempt remains budgeted.
+
+Current quote schemas require pricingVersion=weight-distance-v2, ratePerKgKmMinor, routeCarryDistanceM, shipmentChargeMinor, detourChargeMinor and expiresAt. Obsolete persisted plan tariffs return 409 PRICING_VERSION_CHANGED; they are never reinterpreted. Migration 002 adds explicit trip tariff/version fields and logistics_quotes while excluding unrepublished legacy trips. The main exporter and UI test fixture copy remain synchronized.

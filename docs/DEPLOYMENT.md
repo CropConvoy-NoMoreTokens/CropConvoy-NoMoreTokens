@@ -1,31 +1,27 @@
-# Deployment handoff (not deployed)
+# Deployment handoff — Render API and Vercel UI
 
-The starter has separate service roots and build scripts. These instructions do not mean provider access, quotas, production configuration or live integrations have been verified. Deploy the shell early, then complete actual database/routing/model work before claiming the demo flow works.
+The modules are integrated and locally verified, including real configured routing and Gemini calls. This does not mean the application has been deployed or its production proxy/provider capacity has been verified.
 
-## Railway API — P2
+## Render API
 
-1. Create a PostgreSQL database and API service from the team's repository; set service root to api/ and Node runtime to 24.
-2. Build: `npm ci && npm run build`. Start: `npm start`. The server binds 0.0.0.0 and PORT.
-3. Liveness: /health. Readiness: /ready. The starter returns 503 readiness while memory repositories are active.
-4. Set DATABASE_URL via the database reference. Configure CORS_ORIGINS with the actual Vercel origin and any explicit development/preview origins.
-5. Run `npm run db:migrate` in a controlled release/predeploy step from the source checkout (it needs scripts/ and db/). The runner is idempotent for the initial migration. Do not run destructive seed/reset commands at startup.
-6. Configure LLM_API_KEY, LLM_MODEL, ROUTING_BASE_URL, optional ROUTING_API_KEY, DEMO_MODE=true, MAX_PLAN_MS=45000. P2/P3 still need to implement the adapters that consume model/routing settings.
-7. Leave API_STUBS=true for the initial shell. Switch only when implementation is real; replace repository adapters and metadata first. Confirm secrets are absent from logs/browser responses.
-8. P2 verifies the hosting proxy chain and configures trust proxy appropriately before relying on IP-based rate limits. The current limiter is per-process only.
-9. Generate the public HTTPS API domain and send it to P1.
+- Use the repository's api/ root, Node 24, build `npm ci && npm run build`, and start `npm start`. The server binds 0.0.0.0 and PORT.
+- Configure DATABASE_URL for the selected database. The current database is Neon; use its connection URL with TLS/channel binding. Render Postgres is an alternative if chosen later, using its same-region internal URL.
+- Apply `npm run db:migrate` from api/ before serving traffic. Both 001 and 002 are required. Use Render's paid-service Pre-Deploy Command where available, or run migrations from an authorized source checkout. The migration ledger makes repeated runs idempotent; never reset/seed records on server startup.
+- Existing legacy trips remain detour-v0 and must be republished with an explicit kg-km rate; old rates are not converted. If a standalone hybrid-v1 schema was applied previously, review P3's upgrade handoff before applying the fresh migration.
+- Configure API_STUBS=false, LLM_API_KEY, LLM_MODEL, optional LLM_BASE_URL, an approved ROUTING_BASE_URL, ROUTING_PROFILE=driving, MAX_PLAN_MS=45000 and exact CORS_ORIGINS. Keep all credentials in server settings. Never place them in VITE_ variables.
+- Liveness is /health. Readiness is /ready and checks source/plan/quote tables plus the tariff column; readiness alone does not prove provider availability.
+- Verify Render's proxy chain before changing Express trust proxy or relying on the prototype's per-process IP limiter.
 
-## Vercel web — P1
+## Vercel UI
 
-1. Service root: web/. Framework: Vite. Node runtime: 24. Build: `npm run build`. Output: dist/.
-2. Set VITE_API_BASE_URL to the actual API HTTPS base URL. This is compiled into the browser build; redeploy after changing it.
-3. Configure a permitted public tile URL if P1's map implementation requires it. Keep attribution. Never put database/model secrets in VITE_ variables.
-4. Current single-page role tabs need no route rewrites. Add an SPA fallback if introducing browser URL routes.
+- Use web/ as root, Vite preset, Node 24, build `npm run build`, output dist/.
+- Set VITE_DATA_MODE=api and VITE_API_BASE_URL to the Render HTTPS API URL. Restart/rebuild after changing VITE_ settings. The default demo is explicitly simulated and does not call the API.
+- Configure the approved public map tiles and attribution. Hash routing needs no SPA fallback rewrite.
 
-## Verification gate
+## Verification
 
-- Private browser window reaches /health from the deployed UI with correct CORS.
-- Real create/read listing, order and trip, then generate/retrieve/decide plan.
-- API restart preserves database-backed listing, full geometry and proposal.
-- LLM/routing failures return clear errors or explicitly labeled permitted fallback.
-- Correct money/route/constraints; farmer acceptance says confirmations pending.
-- No provider quota, security/authentication or heavy-truck suitability claims beyond tested behavior.
+Run both production builds and suites independently. On deployed URLs, verify CORS/request IDs, listing/order/trip creation, returned full route geometry, versioned carrying/detour charges, generation/retrieval, expiry/stale conflicts, pending farmer acceptance and persistence after an API process restart. No stock/demand/capacity is reserved or decremented.
+
+`P4_TEST_DATABASE_URL=<disposable local PostgreSQL> npm run api:integration-check` runs the bounded real-provider check using configured routing/Gemini and a generated local database. It never writes the hosted DATABASE_URL and removes its local database afterward. The local role needs CREATE DATABASE permission. Ordinary automated tests mock only external provider responses in the combined real-module flow.
+
+References: [Render Express deployment](https://render.com/docs/deploy-node-express-app), [pre-deploy commands](https://render.com/docs/deploys#pre-deploy-command), [Postgres connections](https://render.com/docs/postgresql-creating-connecting), and [P3/P4 local integration](LOCAL-INTEGRATION.md).

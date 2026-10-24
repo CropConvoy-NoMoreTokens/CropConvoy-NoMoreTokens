@@ -24,6 +24,7 @@ export const tripInputSchema = z.strictObject({
   departureAt: dateSchema, availableKg: quantity,
   corridorM: int32.min(1), maxExtraDistanceM: int32, maxExtraTimeS: int32,
   baseMinor: whole, perKmMinor: whole, handlingMinor: whole,
+  ratePerKgKmMinor: whole, pricingVersion: z.literal('weight-distance-v2'),
 });
 export const extractInputSchema = z.strictObject({
   text: z.string().trim().min(1).max(5000),
@@ -65,28 +66,56 @@ export type Order = OrderInput & { id: string; status: 'open'; createdAt: string
 export type LineString = { type: 'LineString'; coordinates: [number, number][] };
 export type Trip = TripInput & { id: string; status: 'open'; createdAt: string;
   routeGeoJSON: LineString; routeDistanceM: number; routeDurationS: number; routeProvider: string; routeProfile: string };
-export type QuoteSnapshot = {
-  quoteId: string; listingId: string; orderId: string; tripId: string; quantityKg: number;
-  pricePerKgMinor: number; baseMinor: number; perKmMinor: number; handlingMinor: number;
-  grossMinor: number; transportMinor: number; netMinor: number;
-  baseGeometry: LineString; modifiedGeometry: LineString;
-  baseDistanceM: number; modifiedDistanceM: number; extraDistanceM: number;
-  baseDurationS: number; modifiedDurationS: number; extraTimeS: number;
-  pickupAt: string; deliveryAt: string; generatedAt: string;
-  ruleOutcomes: Record<string, boolean>;
-};
+export type QuoteSnapshot = z.infer<typeof quoteSnapshotSchema>;
 export type ReviewInput = { listing: Listing; quotes: QuoteSnapshot[] };
 export type PlanStatus = 'proposed' | 'farmer_accepted_pending_confirmations' | 'rejected';
 export type TraceEntry = { role: 'market' | 'logistics' | 'advocate' | 'workflow'; action: string; outcome: string };
-export type Plan = {
-  id: string; listingId: string; orderId: string; tripId: string; quantityKg: number;
-  status: PlanStatus; quoteSnapshot: QuoteSnapshot; review: ReviewResult;
-  trace: TraceEntry[]; expiresAt: string; createdAt: string;
-};
-export type GenerationResult = {
-  outcome: 'proposed' | 'no_feasible_plan'; plan: Plan | null;
-  alternatives: QuoteSnapshot[]; rejections: LogisticsResult['rejections'];
-  trace: TraceEntry[]; searchComplete: boolean;
-};
+export type Plan = z.infer<typeof planSchema>;
+export type GenerationResult = z.infer<typeof generationResultSchema>;
 export type ApiMode = 'stub' | 'live' | 'deterministic_fallback';
 export type ApiResponse<T> = { data: T; meta: { mode: ApiMode; persistence: 'memory' | 'postgres'; requestId: string } };
+
+// Runtime schemas mirror the existing module handoff; no runtime import from contracts/.
+export const listingSchema = listingInputSchema.extend({ id: idSchema, status: z.literal('open'), createdAt: dateSchema });
+export const orderSchema = orderInputSchema.extend({ id: idSchema, status: z.literal('open'), createdAt: dateSchema });
+export const lineStringSchema = z.strictObject({ type: z.literal('LineString'),
+  coordinates: z.array(z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)])).min(2) });
+export const tripSchema = tripInputSchema.extend({ id: idSchema, status: z.literal('open'), createdAt: dateSchema,
+  routeGeoJSON: lineStringSchema, routeDistanceM: distance.positive(), routeDurationS: distance.positive(),
+  routeProvider: z.string().min(1), routeProfile: z.string().min(1) });
+export const quoteSnapshotSchema = z.strictObject({
+  quoteId: idSchema, listingId: idSchema, orderId: idSchema, tripId: idSchema, quantityKg: quantity,
+  pricePerKgMinor: positive, baseMinor: whole, perKmMinor: whole, handlingMinor: whole,
+  ratePerKgKmMinor: whole, pricingVersion: z.literal('weight-distance-v2'),
+  routeCarryDistanceM: distance, shipmentChargeMinor: whole, detourChargeMinor: whole, expiresAt: dateSchema,
+  grossMinor: whole, transportMinor: whole, netMinor: z.number().int().min(-Number.MAX_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER),
+  baseGeometry: lineStringSchema, modifiedGeometry: lineStringSchema,
+  baseDistanceM: distance, modifiedDistanceM: distance, extraDistanceM: distance,
+  baseDurationS: distance, modifiedDurationS: distance, extraTimeS: distance,
+  pickupAt: dateSchema, deliveryAt: dateSchema, generatedAt: dateSchema,
+  ruleOutcomes: z.record(z.string(), z.boolean()),
+});
+export const traceEntrySchema = z.strictObject({ role: z.enum(['market', 'logistics', 'advocate', 'workflow']),
+  action: z.string().max(100), outcome: z.string().max(500) });
+export const sourceSnapshotSchema = z.strictObject({ listing: listingSchema, order: orderSchema, trip: tripSchema });
+export const apiModeSchema = z.enum(['stub', 'live', 'deterministic_fallback']);
+export const planSchema = z.strictObject({
+  id: idSchema, listingId: idSchema, orderId: idSchema, tripId: idSchema, quantityKg: quantity,
+  status: z.enum(['proposed', 'farmer_accepted_pending_confirmations', 'rejected']),
+  quoteSnapshot: quoteSnapshotSchema, review: reviewResultSchema, trace: z.array(traceEntrySchema),
+  expiresAt: dateSchema, createdAt: dateSchema,
+  sourceSnapshot: sourceSnapshotSchema, mode: apiModeSchema,
+  // Optional for proposals saved before search completeness was persisted.
+  searchComplete: z.boolean().optional(),
+}).refine(plan => plan.listingId === plan.quoteSnapshot.listingId && plan.orderId === plan.quoteSnapshot.orderId &&
+  plan.tripId === plan.quoteSnapshot.tripId && plan.quantityKg === plan.quoteSnapshot.quantityKg &&
+  plan.sourceSnapshot.listing.id === plan.listingId && plan.sourceSnapshot.order.id === plan.orderId &&
+  plan.sourceSnapshot.trip.id === plan.tripId && plan.review.verdict === 'recommend' &&
+  plan.review.selectedQuoteId === plan.quoteSnapshot.quoteId && Date.parse(plan.expiresAt) > Date.parse(plan.createdAt),
+  { message: 'Plan must contain a consistent, reviewed proposal and its sources' });
+export const generationResultSchema = z.strictObject({
+  outcome: z.enum(['proposed', 'no_feasible_plan']), plan: planSchema.nullable(),
+  alternatives: z.array(quoteSnapshotSchema).max(1), rejections: logisticsResultSchema.shape.rejections,
+  trace: z.array(traceEntrySchema), searchComplete: z.boolean(), mode: apiModeSchema,
+}).refine(result => (result.outcome === 'proposed') === (result.plan !== null) &&
+  (!result.plan || result.plan.mode === result.mode), { message: 'Generation outcome and mode must match its saved proposal' });

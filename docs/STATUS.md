@@ -1,31 +1,26 @@
-# Starter status
+# Integration status — 24 October 2026
 
-Update this file as each owner replaces their stubs.
+P1 UI, P2 market/platform, P3 logistics and P4 advocate/workflow are integrated on feat/p4-persisted-advocate-workflow after rebasing onto the updated dev branch. The rebase is complete and there are no unresolved conflict markers.
 
-| Area | Current implementation | Remaining / owner |
+| Area | Integrated behavior | Remaining |
 |---|---|---|
-| Repository | Independent api/web packages, lockfiles, ignore rules and handoffs | Team baseline commit/push |
-| API | Express routes, body validation/limit, CORS, request IDs, per-process rate limiting, error envelope | Hosting-specific proxy configuration, request timing / P2 |
-| Health | /health works; /ready refuses memory-only app | Real readiness after DB repositories / P2 |
-| Contracts | Zod request/initial-result validators, TypeScript domain types, schemas, fixtures, HTTP examples, getQuote handoff | Full quote/plan runtime validators / P4 |
-| Listings/orders | Validated create/read in temporary memory with server UUIDs | PostgreSQL repositories and seed / P2 |
-| Extraction/market | Null draft and empty candidate stubs | Live model tools, deterministic matching/fallback / P2 |
-| Database | Initial four-table SQL and transactional once-only migration runner | Execute against PostgreSQL; repository mapping / P2 plus module owners |
-| Trips/routing | Empty list and explicit 503 create stub; routing dependency interface | Provider/corridor validation, persistence, route feasibility / P3 |
-| Pricing | Integer minor-unit detour calculation with baseline tests | Integrate into validated quote snapshots / P3 |
-| Advocate | Explicit BACKEND_PENDING no-plan response | Grounded full-snapshot review and model tools / P4 |
-| Workflow | Connected module stubs and propagated timeout signal; incomplete empty result | Enforced deadline/budgets, partial results, persisted real plans / P4 |
-| Decisions | Input validation plus 503 stub | Expiry/source validation, idempotency and conditional updates / P4 |
-| Frontend | Role shell, API helper, connection check and stub notice | Forms, maps and full demo screens / P1 |
-| Deployment | Documented roots, commands and environment examples | Actual hosting/resources and browser/restart checks / P1/P2 |
+| Frontend | Role workspaces, source snapshot pins/minimums, versioned carrying/detour breakdown, fallback/partial status, expiry/conflict controls | Hosted browser verification |
+| Market/model | PostgreSQL listings/orders, evidence-checked extraction, filtered buyer search, normalized Gemini tools and explicit fallback | Provider availability remains environment-dependent |
+| Logistics | Configurable real OSRM adapter, road/stop/constraint checks, weight-distance-v2 fare and durable quotes | Approved provider capacity and deployment configuration |
+| Advocate | Integer money/component verification, minimum-net rules, validated quote IDs and best evaluated feasible net | No global-optimum or confirmed-booking claim |
+| Workflow | Scoped shared budgets, logistics diagnostics, quote-bounded expiry and saved partial plans | Physical SQL cancellation remains limited by the injected DB interface |
+| Decisions | Source/price re-read, legacy tariff rejection, quote/plan expiry in conditional updates, idempotency and 409 conflicts | Buyer/transporter confirmations remain outside MVP |
+| Database | Ordered migration ledger; fresh/repeated 001+002 tested; configured database already has tariff and quote schema | Review future schema/legacy tariff upgrades through migrations |
+| Authentication | Public demo role selector | Real identity/authorization outside this task |
+| Deployment | Render API and Vercel UI guidance | Hosted end-to-end/proxy verification |
 
-The reference plan describes the target behavior. This status file describes the actual starter. No external resources were created; no credentials were required. Stub listing/order data disappears on restart. No seed route or LLM call is represented as live.
+## Verification
 
-## Baseline verification
+- All 43 frontend tests and both independent production builds passed on Node 24; API tests, fixtures and integration/migration scripts type-checked.
+- All 72 API tests passed on Node 24, with every PostgreSQL suite enabled and no skips. Tests cover both migrations, old tariff upgrades, actual P2/P3/P4 services, persisted quotes/plans, separate API processes, repeated/conflicting/stale/expired decisions, model/routing outages and partial results at deadline.
+- The combined automated tests fake only external Gemini/OSRM HTTP responses, not the production logistics/business repositories. Long model prose is excluded from persisted trace output; cumulative diagnostics are deduplicated.
+- A bounded live Gemini logistics/advocate protocol check passed using explicitly synthetic in-memory routing fixtures and no database writes.
+- A second live check used the configured real routing and Gemini services with a disposable local PostgreSQL database: 93,258.7 m original road route, 15,351.8889 m carrying segment, LKR 595.63 transport and LKR 17,004.37 proceeds for the explicitly synthetic 80 kg / LKR 220 per kg test sale. It returned live/complete, recorded farmer_accepted_pending_confirmations, retained the same quote after a new API instance/pool, and left stock/demand/capacity unchanged. The generated local database was removed. No hosted records were written.
+- The configured database already has migration 002, logistics_quotes and rate/version columns; no hosted migration was applied by this task.
 
-- API TypeScript production build: passed.
-- API tests: 4 passed (HTTP validation/stub behavior and three fare cases).
-- Web TypeScript/Vite production build: passed.
-- Built API startup and /health smoke check: passed.
-- Contract JSON Schema export and local Markdown link checks: passed.
-- PostgreSQL migration execution, live LLM/routing, deployed browser flow and persistence restart check: not run; require implementation and external service configuration.
+Repeat the real-provider check from api/ with a dedicated local PostgreSQL URL in P4_TEST_DATABASE_URL: npm run api:integration-check. It requires CREATE DATABASE permission locally, uses the configured provider credentials, and drops only its generated local test database. Do not point test-write suites at an unreviewed hosted/production database.

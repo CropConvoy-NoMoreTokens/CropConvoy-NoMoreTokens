@@ -1,10 +1,13 @@
 # Team contract pack
 
-- Runtime validators and TypeScript domain types: api/src/core/contracts.ts (P4 owns; coordinate changes).
-- schemas.json: generated JSON Schema for request inputs and the four initial agent results. Regenerate with `npm run contracts:export` in api/ after agreed schema changes.
-- fixtures/happy-path.json: shared request inputs and money example.
-- fixtures/module-results.json: synthetic outputs for isolated module tests; never serve these as live AI/routing results.
+- Runtime validators/types: api/src/core/contracts.ts (P4 owner).
+- schemas.json: generated request, agent result, source record, QuoteSnapshot, Plan and GenerationResult JSON Schemas.
+- fixtures/happy-path.json: synthetic request inputs and arithmetic example.
+- fixtures/module-results.json: synthetic module outputs.
+- fixtures/workflow-responses.json: P1 success/empty/incomplete/error envelopes, explicitly synthetic.
 - requests.http: manual API smoke requests.
-- docs/CONTRACTS.md: endpoint, envelope, interface, and unit agreement.
+- docs/CONTRACTS.md: endpoint, unit, persistence and owner integration agreement/proposals.
 
-This folder is a reviewable reference pack. Services never import files from it at runtime or during production builds. API tests may read it from the repository checkout. The export script is a maintainer tool, not a deployment step. Full Plan and QuoteSnapshot runtime validators are pending P4 implementation; their initial TypeScript types are already defined.
+Regenerate all schemas from api/: npm run contracts:export. P4 result schemas are included in the existing exporter; the old supplemental command is no longer required. Cross-record, money and state invariants also run in code.
+
+This is a reference pack, never a production runtime package. API tests may read fixtures from the checkout. No synthetic geometry or quote is a verified road route or live provider result.
