@@ -71,7 +71,7 @@ describe('demo accounts and role workflows', () => {
   });
   test('farmer sample → review → explicit publish → proposal → accept → refresh', async () => {
     const service = createDemoService(); const publish = vi.spyOn(service, 'createListing');
-    const user = start('/app/farmer', 'farmer', service);
+    const user = start('/app/farmer?view=new', 'farmer', service);
     await user.click(await screen.findByRole('button', { name: 'Try sample' })); await user.click(screen.getByRole('button', { name: 'Review details' }));
     await screen.findByRole('button', { name: 'Publish harvest' }); expect(publish).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Publish harvest' })); expect(screen.getAllByText('Confirm that the pickup pin is correct.').length).toBeGreaterThan(0);
@@ -110,7 +110,7 @@ describe('demo accounts and role workflows', () => {
     sessionStorage.setItem('cropconvoy.apiToken', 'test-token');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: { id: DEMO_IDS.farmer, username: 'farmer', role: 'farmer' }, meta: { mode: 'live', persistence: 'postgres', requestId: 'test' } }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
     const service = createDemoService(); service.mode = 'api'; vi.spyOn(service, 'extract').mockRejectedValue(new ApiError('Extraction is unavailable. Enter the fields manually.', 503, 'DEPENDENCY_UNAVAILABLE')); const save = vi.spyOn(service, 'createListing');
-    const user = start('/app/farmer', 'farmer', service); await user.type(await screen.findByLabelText('Tell us about your harvest'), 'A harvest with incomplete details'); await user.click(screen.getByRole('button', { name: 'Review details' }));
+    const user = start('/app/farmer?view=new', 'farmer', service); await user.type(await screen.findByLabelText('Tell us about your harvest'), 'A harvest with incomplete details'); await user.click(screen.getByRole('button', { name: 'Review details' }));
     expect(await screen.findByRole('button', { name: 'Publish harvest' })).toBeInTheDocument(); expect(screen.getByText('Extraction is unavailable. Enter the fields manually.')).toBeInTheDocument(); expect(screen.getByLabelText('Quantity (whole kg)')).toHaveValue(null); expect(save).not.toHaveBeenCalled();
   });
   test('empty trip list can recover from a dependency failure', async () => {
@@ -131,7 +131,7 @@ describe('demo accounts and role workflows', () => {
     const user = start(`/app/farmer?listing=${listing.data.id}&plan=${plan.id}`, 'farmer', service); await user.click(await screen.findByRole('button', { name: 'Accept proposal' })); await user.click(screen.getByRole('button', { name: 'Confirm acceptance' })); expect(await screen.findByText('This proposal is stale. Generate a new one.')).toBeInTheDocument(); expect(screen.getByRole('button', { name: 'Generate another proposal' })).toBeEnabled();
   });
   test('manual entry, description editing, map changes and discard confirmations work', async () => {
-    const user = start('/app/farmer', 'farmer'); const description = await screen.findByLabelText('Tell us about your harvest'); await user.type(description, 'A description to keep'); await user.click(screen.getByRole('button', { name: 'Enter details manually' }));
+    const user = start('/app/farmer?view=new', 'farmer'); const description = await screen.findByLabelText('Tell us about your harvest'); await user.type(description, 'A description to keep'); await user.click(screen.getByRole('button', { name: 'Enter details manually' }));
     await user.click(screen.getByRole('button', { name: 'Edit description' })); expect(screen.getByLabelText('Tell us about your harvest')).toHaveValue('A description to keep'); await user.click(screen.getByRole('button', { name: 'Enter details manually' }));
     await user.click(screen.getByRole('button', { name: 'Publish harvest' })); await user.click(screen.getByRole('link', { name: 'Choose a supported crop.' })); expect(screen.getByLabelText('Crop')).toHaveFocus();
     await user.click(screen.getByLabelText('I have checked the pickup pin.')); await user.click(await screen.findByRole('button', { name: 'Choose map pin' })); expect(screen.getByLabelText('Pickup latitude')).toHaveValue(7.8); expect(screen.getByLabelText('I have checked the pickup pin.')).not.toBeChecked();
@@ -163,6 +163,9 @@ test('saved harvests can be reopened after signing out and back in', async () =>
   await user.click(await within(restored).findByRole('button', { name: /Open harvest/ }));
   expect(await screen.findByText('Harvest saved')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Find a proposal' })).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: /Back to my harvests/ }));
+  expect(await screen.findByRole('region', { name: 'My harvests' })).toBeInTheDocument();
+  expect(screen.queryByText('Harvest saved')).not.toBeInTheDocument();
 });
 
 
@@ -179,4 +182,17 @@ test('a delayed harvest response clears loading and enables actions after a deep
   expect(screen.getByRole('button', { name: 'Find a proposal' })).toBeEnabled();
   expect(screen.queryByLabelText('Loading your harvest')).not.toBeInTheDocument();
   expect(getListing).toHaveBeenCalledTimes(1);
+});
+
+
+test('farmer starts with harvests and can switch views without losing a draft', async () => {
+  const user = start('/app/farmer', 'farmer');
+  expect(await screen.findByRole('region', { name: 'My harvests' })).toBeInTheDocument();
+  expect(screen.queryByLabelText('Tell us about your harvest')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Add harvest' }));
+  await user.type(await screen.findByLabelText('Tell us about your harvest'), 'My tomato harvest');
+  expect(screen.queryByRole('region', { name: 'My harvests' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'My harvests' }));
+  await user.click(screen.getByRole('button', { name: 'New harvest' }));
+  expect(await screen.findByLabelText('Tell us about your harvest')).toHaveValue('My tomato harvest');
 });
