@@ -12,7 +12,7 @@ import { LocationPicker, RouteMap } from '../../components/LocationPicker';
 import { ModeNotice } from '../Workspace';
 const empty = { capacity: '', departure: '', base: '', rate: '', carryingRate: '', handling: '0', corridor: '3000', distance: '', minutes: '' };
 export default function Transporter() {
-  const { service, notify, remember } = useApp();
+  const { service, notify, remember, identity } = useApp();
   const [params] = useSearchParams();
   const [form, setForm] = useState(empty);
   const [start, setStart] = useState<Point>({ lat: 7.95, lng: 80.65 });
@@ -37,7 +37,7 @@ export default function Transporter() {
   function sample() { setForm({ capacity: '120', departure: tomorrowAt(9), base: '350', rate: '100', carryingRate: '0.20', handling: '0', corridor: '3000', distance: '10', minutes: '60' }); setErrors({}); setSaved(null); notify('Sample trip filled. Confirm both map pins before saving.'); }
   async function submit(event: FormEvent) {
     event.preventDefault(); if (lock.current || saved) return; setError(undefined); setSaved(null);
-    const result = tripSchema.safeParse({ demoTransporterId: DEMO_IDS.transporter, start, end, departureAt: colomboToUtc(form.departure), availableKg: form.capacity ? Number(form.capacity) : NaN, corridorM: form.corridor ? Number(form.corridor) : NaN, maxExtraDistanceM: form.distance ? Number(form.distance) * 1000 : NaN, maxExtraTimeS: form.minutes ? Number(form.minutes) * 60 : NaN, ratePerKgKmMinor: rupeesToMinor(form.carryingRate), pricingVersion: 'weight-distance-v2', baseMinor: rupeesToMinor(form.base), perKmMinor: rupeesToMinor(form.rate), handlingMinor: rupeesToMinor(form.handling) });
+    const result = tripSchema.safeParse({ demoTransporterId: identity?.id ?? DEMO_IDS.transporter, start, end, departureAt: colomboToUtc(form.departure), availableKg: form.capacity ? Number(form.capacity) : NaN, corridorM: form.corridor ? Number(form.corridor) : NaN, maxExtraDistanceM: form.distance ? Number(form.distance) * 1000 : NaN, maxExtraTimeS: form.minutes ? Number(form.minutes) * 60 : NaN, ratePerKgKmMinor: rupeesToMinor(form.carryingRate), pricingVersion: 'weight-distance-v2', baseMinor: rupeesToMinor(form.base), perKmMinor: rupeesToMinor(form.rate), handlingMinor: rupeesToMinor(form.handling) });
     const problems = result.success ? {} : validationErrors(result.error);
     if (!pinsConfirmed) problems.pinsConfirmation = 'Check and confirm both route pins.';
     if (start.lat === end.lat && start.lng === end.lng) problems['end.lat'] = 'Choose a destination different from the starting point.';

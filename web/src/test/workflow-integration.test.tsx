@@ -5,6 +5,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { AppRoutes } from '../App';
 import { AppProvider } from '../state/AppContext';
 import { createHttpService } from '../api/service';
+import { setApiToken } from '../api/authSession';
 import { money } from '../lib/format';
 import examples from './fixtures/workflow-responses.json';
 
@@ -15,20 +16,24 @@ vi.mock('../components/MapCanvas', () => ({ default: ({ points, geometry }: { po
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 const plan = examples.success.data.plan;
 const listing = plan.sourceSnapshot.listing;
+const farmer = { id: listing.demoFarmerId, role: 'farmer', username: 'farmer' };
+const token = 'W'.repeat(43);
 const path = `/app/farmer?listing=${listing.id}&plan=${plan.id}`;
 function RouteLocation() { return <output data-testid="route">{useLocation().search}</output>; }
 function start(route = path) {
   vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-25T03:01:00Z'));
-  sessionStorage.setItem('cropconvoy.identity', JSON.stringify({ role: 'farmer', username: 'farmer' }));
+  setApiToken(token);
   localStorage.setItem('cropconvoy.preferences', 'essential');
   const user = userEvent.setup();
   render(<AppProvider service={createHttpService()}><MemoryRouter initialEntries={[route]}><AppRoutes /><RouteLocation /></MemoryRouter></AppProvider>);
   return user;
 }
-function mockApi(stored = plan, generate: unknown = examples.empty, decision: unknown = examples.stale) {
+function mockApi(stored = plan, generate: unknown = examples.empty, decision: unknown = examples.stale, currentListing = listing) {
   const fetcher = vi.fn(async (url: string | URL | Request, options?: RequestInit) => {
     const pathname = new URL(String(url)).pathname;
-    if (pathname === `/api/listings/${listing.id}`) return response({ data: listing, meta: { ...examples.success.meta, mode: 'stub' } });
+    expect(new Headers(options?.headers).get('Authorization')).toBe(`Bearer ${token}`);
+    if (pathname === '/api/auth/me') return response({ data: farmer, meta: examples.success.meta });
+    if (pathname === `/api/listings/${listing.id}`) return response({ data: currentListing, meta: { ...examples.success.meta, mode: 'stub' } });
     if (pathname === '/api/plans/generate') {
       expect(JSON.parse(String(options?.body))).toEqual({ listingId: listing.id });
       return response(generate);
@@ -42,9 +47,8 @@ function mockApi(stored = plan, generate: unknown = examples.empty, decision: un
 
 test('API proposal shows stored minimum, all source locations and partial-search warning after refresh', async () => {
   const stored = { ...structuredClone(plan), searchComplete: false };
-  const fetcher = mockApi(stored);
   // The current listing may differ from the authoritative proposal snapshot.
-  fetcher.mockImplementationOnce(async () => response({ data: { ...listing, minNetMinor: 9900000 }, meta: { ...examples.success.meta, mode: 'stub' } }));
+  const fetcher = mockApi(stored, examples.empty, examples.stale, { ...listing, minNetMinor: 9900000 });
   const user = start();
   const proposal = await screen.findByRole('region', { name: 'A clearer picture of your proceeds.' });
   expect(within(proposal).getByText(money(1600000).replace(/\s/g, ' '))).toBeInTheDocument();
@@ -59,8 +63,11 @@ test('API proposal shows stored minimum, all source locations and partial-search
 
 test('listing response arriving after the plan cannot overwrite the stored fallback mode', async () => {
   let resolveListing!: (value: Response) => void;
-  vi.stubGlobal('fetch', vi.fn(async (url: string) => url.includes('/api/listings/') ?
-    new Promise<Response>(resolve => { resolveListing = resolve; }) : response({ data: plan, meta: examples.success.meta })));
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (new URL(url).pathname === '/api/auth/me') return response({ data: farmer, meta: examples.success.meta });
+    return url.includes('/api/listings/') ? new Promise<Response>(resolve => { resolveListing = resolve; })
+      : response({ data: plan, meta: examples.success.meta });
+  }));
   start();
   await screen.findByText('Fallback mode');
   resolveListing(response({ data: listing, meta: { ...examples.success.meta, mode: 'stub' } }));

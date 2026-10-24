@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { generationResultSchema, planSchema, type ApiResponse, type Listing, type Order } from '../src/core/contracts.js';
 import { setup, fixture } from './workflow-fixtures.js';
+import { demoAuthHeaders, loginDemoAccounts, type DemoTokens } from './fixtures/demo-auth.js';
 
 const databaseUrl = process.env.P4_TEST_DATABASE_URL;
 const local = databaseUrl && ['localhost', '127.0.0.1', '[::1]'].includes(new URL(databaseUrl).hostname);
@@ -38,9 +39,12 @@ test('P2/P3/P4 PostgreSQL modules integrate over HTTP and survive API process re
     const migrate = () => promisify(execFile)(process.execPath,
       ['--import', 'tsx', fileURLToPath(new URL('../scripts/migrate.ts', import.meta.url))],
       { env: { ...process.env, DATABASE_URL: url.toString() } });
-    assert.match((await migrate()).stdout, /Applied 002_weight_distance_logistics.sql/);
+    const firstMigration = await migrate();
+    assert.match(firstMigration.stdout, /Applied 002_demo_auth.sql/);
+    assert.match(firstMigration.stdout, /Applied 002_weight_distance_logistics.sql/);
     const repeatedMigration = await migrate();
     assert.match(repeatedMigration.stdout, /Already applied 001_initial.sql/);
+    assert.match(repeatedMigration.stdout, /Already applied 002_demo_auth.sql/);
     assert.match(repeatedMigration.stdout, /Already applied 002_weight_distance_logistics.sql/);
     const tr = setup().trip;
     await pool.query(`INSERT INTO trips (id,demo_transporter_id,start_lat,start_lng,end_lat,end_lng,departure_at,available_kg,
@@ -67,8 +71,10 @@ test('P2/P3/P4 PostgreSQL modules integrate over HTTP and survive API process re
         });
       });
     };
-    const request = (path: string, input?: unknown) => fetch(base + path, input === undefined ? undefined : {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+    let tokens: DemoTokens;
+    const request = (path: string, input?: unknown) => fetch(base + path, {
+      headers: { ...demoAuthHeaders(tokens, path), ...(input === undefined ? {} : { 'Content-Type': 'application/json' }) },
+      ...(input === undefined ? {} : { method: 'POST', body: JSON.stringify(input) }),
     });
     const data = async <T,>(path: string, input?: unknown, status = 200): Promise<ApiResponse<T>> => {
       const response = await request(path, input); assert.equal(response.status, status);
@@ -81,7 +87,13 @@ test('P2/P3/P4 PostgreSQL modules integrate over HTTP and survive API process re
     };
 
     await start();
+    tokens = await loginDemoAccounts(base, pool);
     assert.equal((await request('/ready')).status, 200);
+    assert.equal((await fetch(base + '/api/orders')).status, 401);
+    assert.equal((await fetch(base + '/api/orders', { headers: demoAuthHeaders(tokens, '/api/plans') })).status, 403);
+    assert.equal((await request('/api/listings', {
+      ...fixture.listingInput, demoFarmerId: fixture.orderInput.demoBuyerId,
+    })).status, 403);
     const health = await fetch(base + '/health', { headers: { Origin: 'http://localhost:5173' } });
     assert.equal(health.headers.get('Access-Control-Allow-Origin'), 'http://localhost:5173');
     assert.match(health.headers.get('Access-Control-Expose-Headers') ?? '', /X-Request-Id/i);
@@ -94,6 +106,14 @@ test('P2/P3/P4 PostgreSQL modules integrate over HTTP and survive API process re
     const listing = (await data<Listing>('/api/listings', fixture.listingInput, 201)).data;
     const order = (await data<Order>('/api/orders', fixture.orderInput, 201)).data;
     const proposed = await generate(listing.id); assert.ok(proposed.plan);
+    assert.equal((await fetch(base + `/api/plans/${proposed.plan.id}`)).status, 401);
+    assert.equal((await fetch(base + `/api/plans/${proposed.plan.id}`, {
+      headers: demoAuthHeaders(tokens, '/api/orders'),
+    })).status, 403);
+    assert.equal((await fetch(base + `/api/plans/${proposed.plan.id}/decision`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...demoAuthHeaders(tokens, '/api/orders') },
+      body: JSON.stringify({ decision: 'accept' }),
+    })).status, 403);
     assert.equal(proposed.mode, 'live'); assert.equal(proposed.plan.quoteSnapshot.netMinor, 1665000);
     assert.equal(proposed.plan.sourceSnapshot.order.id, order.id);
     assert.equal(providerStages.filter(stage => stage === 'searchOrders').length, 1);

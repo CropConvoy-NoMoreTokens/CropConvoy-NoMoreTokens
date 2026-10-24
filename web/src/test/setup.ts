@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { vi, afterEach } from 'vitest';
 import { cleanup, configure } from '@testing-library/react';
+import { clearApiToken } from '../api/authSession';
 configure({ asyncUtilTimeout: 7000 });
 Object.defineProperty(window, 'matchMedia', { writable: true, value: vi.fn().mockImplementation(query => ({ matches: false, media: query, onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn() })) });
 Object.defineProperty(window, 'scrollTo', { writable: true, value: vi.fn() });
@@ -11,4 +12,4 @@ if (!window.PointerEvent) window.PointerEvent = MouseEvent as typeof PointerEven
 Element.prototype.hasPointerCapture = () => false;
 Element.prototype.setPointerCapture = () => {};
 Element.prototype.releasePointerCapture = () => {};
-afterEach(() => { cleanup(); sessionStorage.clear(); localStorage.clear(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); clearApiToken(); sessionStorage.clear(); localStorage.clear(); vi.unstubAllGlobals(); });

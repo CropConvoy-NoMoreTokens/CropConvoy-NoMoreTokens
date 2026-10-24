@@ -7,6 +7,7 @@ import type { Dependencies } from './core/dependencies.js';
 import { ApiError } from './core/errors.js';
 import { reply } from './core/http.js';
 import { createMarketRepository } from './modules/market/repository.js';
+import { authenticate, authorizeRequest, login, loginInputSchema, logout, type AuthUser } from './core/auth.js';
 import { registerRoutes as marketRoutes } from './modules/market/routes.js';
 import { createLogisticsService, type LogisticsService } from './modules/logistics/service.js';
 import { registerRoutes as logisticsRoutes } from './modules/logistics/routes.js';
@@ -39,6 +40,31 @@ export function createApp(deps: Dependencies, origins: string[], options: AppOpt
   // P2 must configure trust proxy for the verified hosting topology before public deployment.
   app.use('/api', rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false,
     handler(_req, res) { res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many requests; try again in a minute' } }); } }));
+  app.use('/api/auth', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+  app.post('/api/auth/login', rateLimit({ windowMs: 15 * 60_000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false,
+    handler(_req, res) { res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many login attempts; try again later' } }); } }),
+    async (req, res) => {
+      return reply(res, deps, await login(deps, loginInputSchema.parse(req.body)));
+    });
+  app.use('/api', async (req, res, next) => {
+    // The keyless starter still supports its existing local stub tests. Any
+    // PostgreSQL-backed API requires a database session, including stub mode.
+    if (deps.persistence !== 'postgres') return next();
+    const session = await authenticate(deps, req.get('Authorization'));
+    res.locals.authUser = session.user;
+    res.locals.authTokenHash = session.tokenHash;
+    await authorizeRequest(deps, session.user, req.method, req.path, req.body);
+    next();
+  });
+  app.get('/api/auth/me', (req, res) => {
+    const user = res.locals.authUser as AuthUser | undefined;
+    if (!user) throw new ApiError(401, 'AUTH_REQUIRED', 'Sign in to use this API');
+    return reply(res, deps, user);
+  });
+  app.post('/api/auth/logout', async (_req, res) => {
+    await logout(deps, res.locals.authTokenHash as string);
+    return reply(res, deps, { signedOut: true });
+  });
   app.get('/health', (_req, res) => reply(res, deps, { status: 'ok', version: '0.1.0', implementation: 'integrated-prototype' }));
   app.get('/ready', async (_req, res) => {
     if (deps.persistence !== 'postgres') throw new ApiError(503, 'NOT_READY', 'PostgreSQL is not configured');

@@ -10,11 +10,15 @@ P1 UI, P2 market/platform, P3 logistics and P4 advocate/workflow are integrated 
 | Advocate | Integer money/component verification, minimum-net rules, validated quote IDs and best evaluated feasible net | No global-optimum or confirmed-booking claim |
 | Workflow | Scoped shared budgets, logistics diagnostics, quote-bounded expiry and saved partial plans | Physical SQL cancellation remains limited by the injected DB interface |
 | Decisions | Source/price re-read, legacy tariff rejection, quote/plan expiry in conditional updates, idempotency and 409 conflicts | Buyer/transporter confirmations remain outside MVP |
-| Database | Ordered migration ledger; fresh/repeated 001+002 tested; configured database already has tariff and quote schema | Review future schema/legacy tariff upgrades through migrations |
-| Authentication | Public demo role selector | Real identity/authorization outside this task |
+| Database | Ordered migration ledger; initial, demo-auth and logistics migrations required; configured database already has tariff and quote schema | Review future schema/legacy tariff upgrades through migrations |
+| Authentication | PostgreSQL demo sessions, server-confirmed actor IDs, role/owner checks and API-mode login | Private registration and production identity management |
 | Deployment | Render API and Vercel UI guidance | Hosted end-to-end/proxy verification |
 
-## Verification
+## Current rebase
+
+Preserved demo authentication together with P3 logistics and P4 workflow wiring. HTTP integration helpers use authenticated roles and server-confirmed actor IDs. Tests and builds were not run for this rebase, as requested; the verification below records earlier work and must be repeated manually.
+
+## Previous verification (before this rebase)
 
 - All 43 frontend tests and both independent production builds passed on Node 24; API tests, fixtures and integration/migration scripts type-checked.
 - All 72 API tests passed on Node 24, with every PostgreSQL suite enabled and no skips. Tests cover both migrations, old tariff upgrades, actual P2/P3/P4 services, persisted quotes/plans, separate API processes, repeated/conflicting/stale/expired decisions, model/routing outages and partial results at deadline.

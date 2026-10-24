@@ -13,7 +13,7 @@ No remote branch was changed by the integration work.
 - Matched logistics hard-rule names with Advocate requirements, compared both price components, propagated fallback/search completeness and bounded plan expiry by quote expiry.
 - Avoided counting cheap proximity/capacity rejections against the six routed-combination limit.
 - Added migration 002 for tariff/quote storage and made the migration runner execute unapplied SQL files in order.
-- Kept demo and API modes separate. Login remains a public demo role selector, not secure authentication.
+- Kept demo and API modes separate. API mode now uses database-backed demo login and role/owner checks; the predefined credentials are public and are not production identities.
 
 ## Run locally
 
@@ -37,7 +37,7 @@ LLM_MODEL=<team model ID>
 No production routing URL or credentials are committed. Without LLM credentials, extraction asks for manual completion and market/logistics/advocate use explicitly labelled deterministic fallback. Routing/database failures never produce demo-success substitutes.
 
 From api/, run npm run db:migrate, then npm run dev.
-The migration runner applies 001 and 002 once using its ledger/transaction.
+The migration runner applies `001_initial.sql`, `002_demo_auth.sql`, and `002_weight_distance_logistics.sql` once each using its filename ledger and transaction.
 If the older standalone hybrid-v1 SQL was already applied to your database, review the upgrade-hybrid-v1.sql handoff and migration ledger first rather than blindly applying the fresh 002.
 
 Create web/.env.local with:
@@ -70,7 +70,7 @@ npm run build
 npm run contracts:export
 ```
 For dedicated test databases, set LOGISTICS_TEST_DATABASE_URL and P4_TEST_DATABASE_URL before npm test.
-Those opt-in tests create/drop only randomly named test schemas. Never use an unreviewed production database for test writes.
+Those opt-in tests create/drop their own randomly named test schemas or local databases. The process-restart suite requires a local role with CREATE DATABASE permission. Never use an unreviewed production database for test writes.
 
 From web/: npm test; npm run build.
 The local integrated-http test uses actual services and PostgreSQL with explicitly synthetic routing and unavailable model adapters; the separate browser smoke used a real road provider.
@@ -84,3 +84,7 @@ The combined test now runs real P2/P3/P4 modules and the actual migration CLI tw
 
 
 Repeat the current live-provider check with `P4_TEST_DATABASE_URL=postgresql://... npm run api:integration-check` from api/. It creates/migrates/removes only a generated local database; it never writes the configured hosted DATABASE_URL. Actual routing and model calls are bounded. The live result was mode=live/searchComplete=true, 93,258.7 m original route, LKR 595.63 transport and LKR 17,004.37 estimated proceeds for the synthetic 80 kg sale. This is a tested integration example, not a shipment offer, verified heavy-truck route or production SLA.
+
+## Authentication rebase
+
+The latest rebase retains the session middleware, auth readiness tables and server-confirmed UI identity alongside scoped logistics/workflow wiring. HTTP integration suites and the provider check now sign in as each role and reuse sessions after restarting the API. Fixed business clocks remain deterministic; isolated test session expiry is set against PostgreSQL time. Browser workflow tests restore the farmer through /api/auth/me and verify bearer headers. Contract requests include named role logins. No tests, builds, migrations or provider checks were run during this rebase; the results above describe earlier verification.

@@ -10,6 +10,7 @@ import { createApp } from '../src/app.js';
 import { createDependencies, type Dependencies } from '../src/core/dependencies.js';
 import { generationResultSchema, planSchema, type Trip, type Listing, type Order, type ApiResponse } from '../src/core/contracts.js';
 import { configurePostgresNetworking, postgresPoolConfig } from '../src/core/postgres.js';
+import { demoUsers, type DemoRole, type AuthUser } from '../src/core/auth.js';
 
 config({ quiet: true });
 // Real provider calls, but all records belong to a generated LOCAL test database.
@@ -25,6 +26,7 @@ let created = false;
 let deps: Dependencies | undefined;
 let server: Server | undefined;
 let base = '';
+const sessions = new Map<DemoRole, { token: string; user: AuthUser }>();
 async function stop() {
   if (server?.listening) await new Promise<void>((resolve, reject) => server!.close(error => error ? reject(error) : resolve()));
   await deps?.db.close(); server = undefined; deps = undefined;
@@ -39,8 +41,17 @@ async function start() {
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }
 async function request<T>(path: string, input?: unknown, status = 200): Promise<ApiResponse<T>> {
-  const response = await fetch(base + path, input === undefined ? { signal: AbortSignal.timeout(50000) } : {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input), signal: AbortSignal.timeout(50000),
+  const role: DemoRole = path.startsWith('/api/trips') ? 'transporter' : path.startsWith('/api/orders') ? 'buyer' : 'farmer';
+  const headers = new Headers();
+  if (path !== '/api/auth/login') {
+    const session = sessions.get(role);
+    if (!session) throw new Error('Sign in before checking a protected API endpoint');
+    headers.set('Authorization', `Bearer ${session.token}`);
+  }
+  if (input !== undefined) headers.set('Content-Type', 'application/json');
+  const response = await fetch(base + path, {
+    headers, signal: AbortSignal.timeout(50000),
+    ...(input === undefined ? {} : { method: 'POST', body: JSON.stringify(input) }),
   });
   const payload = await response.json() as ApiResponse<T> & { error?: { code?: string } };
   if (response.status !== status) throw Object.assign(new Error('Integrated HTTP check failed'), { code: payload.error?.code ?? `HTTP_${response.status}` });
@@ -51,9 +62,17 @@ try {
   await promisify(execFile)(process.execPath, ['--import', 'tsx', fileURLToPath(new URL('./migrate.ts', import.meta.url))],
     { env: { ...process.env, DATABASE_URL: url.toString() } });
   await start();
+  for (const user of demoUsers) {
+    const session = (await request<{ token: string; user: AuthUser }>('/api/auth/login', {
+      username: user.username, password: user.password,
+    })).data;
+    if (session.user.role !== user.role || session.user.id !== user.id || !/^[A-Za-z0-9_-]{43}$/.test(session.token))
+      throw new Error('Demo login returned an unexpected identity or token');
+    sessions.set(user.role, session);
+  }
   const now = Date.now();
   const trip = (await request<Trip>('/api/trips', {
-    demoTransporterId: randomUUID(), start: { lat: 7.4863, lng: 80.3647 }, end: { lat: 6.9271, lng: 79.8612 },
+    demoTransporterId: sessions.get('transporter')!.user.id, start: { lat: 7.4863, lng: 80.3647 }, end: { lat: 6.9271, lng: 79.8612 },
     departureAt: new Date(now + 3600000).toISOString(), availableKg: 120, corridorM: 3000,
     maxExtraDistanceM: 10000, maxExtraTimeS: 3600, baseMinor: 35000, perKmMinor: 10000,
     ratePerKgKmMinor: 20, pricingVersion: 'weight-distance-v2', handlingMinor: 0,
@@ -62,12 +81,12 @@ try {
   const pickup = coords[Math.floor((coords.length - 1) / 3)];
   const delivery = coords[Math.floor((coords.length - 1) * 2 / 3)];
   const listing = (await request<Listing>('/api/listings', {
-    demoFarmerId: randomUUID(), crop: 'tomato', quantityKg: 80,
+    demoFarmerId: sessions.get('farmer')!.user.id, crop: 'tomato', quantityKg: 80,
     pickup: { lng: pickup[0], lat: pickup[1] }, readyAt: new Date(now + 1800000).toISOString(),
     minNetMinor: 1600000, confirmed: true,
   }, 201)).data;
   const order = (await request<Order>('/api/orders', {
-    demoBuyerId: randomUUID(), crop: 'tomato', remainingKg: 100, pricePerKgMinor: 22000,
+    demoBuyerId: sessions.get('buyer')!.user.id, crop: 'tomato', remainingKg: 100, pricePerKgMinor: 22000,
     delivery: { lng: delivery[0], lat: delivery[1] }, deadlineAt: new Date(now + 86400000).toISOString(), allowsPartial: true,
   }, 201)).data;
   const generated = generationResultSchema.parse((await request('/api/plans/generate', { listingId: listing.id })).data);

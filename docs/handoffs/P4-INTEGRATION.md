@@ -10,6 +10,7 @@ Current branch: feat/p4-persisted-advocate-workflow, rebased on dev with P2 mark
 - P2 listing/order and P4 plan repositories use the injected PostgreSQL adapter. The shared API/migration connection configuration fixes cross-region address timeouts while retaining TLS verification. API pooling retains normal concurrency.
 - The existing contracts:export script now includes source, quote, plan and generation schemas. The old supplemental exporter remains compatible but is not required.
 - P1's UI already supports full quote snapshots, source pins/minimums, fallback metadata, incomplete-search warnings, expiry/conflict handling and pending-confirmation language. Production services do not import the reference pack.
+- The latest dev authentication is preserved: PostgreSQL-backed routes require role/owner-checked bearer sessions, source actor IDs come from server-confirmed identities, and auth tables remain part of readiness. HTTP/process-restart tests and the provider smoke now authenticate all three roles and reuse sessions after restart; browser workflow tests restore API identity before loading a plan. Request examples and the contract agreement describe the same boundary. Tests/builds were not run for this rebase, as requested.
 
 ## P3 integration complete
 
