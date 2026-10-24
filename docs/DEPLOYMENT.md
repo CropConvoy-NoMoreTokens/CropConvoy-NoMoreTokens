@@ -8,14 +8,17 @@ The modules are integrated and locally verified, including real configured routi
 - Configure DATABASE_URL for the selected database. The current database is Neon; use its connection URL with TLS/channel binding. Render Postgres is an alternative if chosen later, using its same-region internal URL.
 - Apply `npm run db:migrate` from api/ before serving traffic. All migrations are required: `001_initial.sql`, `002_demo_auth.sql` and `002_weight_distance_logistics.sql`. Use Render's paid-service Pre-Deploy Command where available, or run migrations from an authorized source checkout. The migration ledger makes repeated runs idempotent; never reset/seed records on server startup.
 - Existing legacy trips remain detour-v0 and must be republished with an explicit kg-km rate; old rates are not converted. If a standalone hybrid-v1 schema was applied previously, review P3's upgrade handoff before applying the fresh migration.
-- Configure API_STUBS=false, LLM_API_KEY, LLM_MODEL, optional LLM_BASE_URL, an approved ROUTING_BASE_URL, ROUTING_PROFILE=driving, MAX_PLAN_MS=45000 and exact CORS_ORIGINS. Keep all credentials in server settings. Never place them in VITE_ variables.
+- Configure API_STUBS=false, LLM_API_KEY, LLM_MODEL, optional LLM_BASE_URL, an approved ROUTING_BASE_URL, ROUTING_PROFILE=driving and MAX_PLAN_MS=45000. Keep all credentials in server settings. Never place them in VITE_ variables.
+- CORS allows every browser origin, including Vercel previews, using `Access-Control-Allow-Origin: *`. CORS_ORIGINS is a legacy input and no longer restricts requests. Bearer authentication and role/owner checks remain required; cookie credentials are not enabled.
 - Liveness is /health. Readiness is /ready and checks source/plan/quote/auth tables plus the tariff column; readiness alone does not prove provider availability.
 - API mode requires bearer sessions, even with API_STUBS=true. Sign in through the three public demo accounts described in [the auth handoff](handoffs/P2-AUTH-INTEGRATION.md); private registration and production identity management remain outside the prototype.
 - Verify Render's proxy chain before changing Express trust proxy or relying on the prototype's per-process IP limiter.
 
 ### Fixing `Cannot find module .../api/dist/server.js`
 
-The failing deployment ran only `npm install`. Installing packages does not run this project's TypeScript build, so `npm start` cannot find its compiled entry point. `dist/` is intentionally ignored by Git and must be generated on Render for every deployment.
+The original failing deployment ran only `npm install`, which previously did not compile this project's TypeScript. `npm start` therefore could not find its compiled entry point. `dist/` is intentionally ignored by Git and must be generated on Render for every deployment.
+
+The API now runs `npm run build` through its postinstall hook, so ordinary `npm install`/`npm ci` also compile it. The build checks `dist/server.js` exists and parses before succeeding. Build-time dependencies must be installed (`--include=dev`); do not disable lifecycle scripts during installation unless you explicitly run the build afterward. Compilation stays in the build phase; startup only runs the compiled server.
 
 For the existing service, open Render **Settings → Build & Deploy** and use:
 
@@ -27,7 +30,7 @@ For the existing service, open Render **Settings → Build & Deploy** and use:
 | Health Check Path | `/health` |
 | Node version | `24` (or `NODE_VERSION=24` in Environment) |
 
-Save the settings, then manually deploy the intended commit. The reported deployment uses `main`; local feature branch changes must reach that configured branch before they can be deployed. The build log should contain `tsc -p tsconfig.json` before startup. A successful package installation alone is insufficient.
+Save the settings, then select **Manual Deploy → Clear build cache & deploy** so Render rebuilds the artifact with the new commands. **Restart service** reuses the current deployment and cannot create a missing compiled file. The reported deployment uses `main`; local feature branch changes must reach that configured branch before they can be deployed. The build log should contain `tsc -p tsconfig.json` and `node --check dist/server.js` before startup. If those are absent, check the deployed commit and Build Command rather than repeatedly restarting the failed artifact.
 
 The repository root now includes [render.yaml](../render.yaml) with the same configuration and server environment placeholders. Committing this file alone does not update a service created manually in the Dashboard. Apply the table above to that existing service, or explicitly link its Blueprint after matching the YAML service name. Preserve existing server environment values; the ignored local api/.env is not uploaded to Render. Migrations remain a separate reviewed step, not part of build/start.
 
