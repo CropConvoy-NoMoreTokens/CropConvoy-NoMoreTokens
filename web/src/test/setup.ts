@@ -1,0 +1,14 @@
+import '@testing-library/jest-dom/vitest';
+import { vi, afterEach } from 'vitest';
+import { cleanup, configure } from '@testing-library/react';
+configure({ asyncUtilTimeout: 7000 });
+Object.defineProperty(window, 'matchMedia', { writable: true, value: vi.fn().mockImplementation(query => ({ matches: false, media: query, onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn() })) });
+Object.defineProperty(window, 'scrollTo', { writable: true, value: vi.fn() });
+Element.prototype.scrollIntoView = vi.fn();
+globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+globalThis.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} takeRecords() { return []; } } as unknown as typeof IntersectionObserver;
+if (!window.PointerEvent) window.PointerEvent = MouseEvent as typeof PointerEvent;
+Element.prototype.hasPointerCapture = () => false;
+Element.prototype.setPointerCapture = () => {};
+Element.prototype.releasePointerCapture = () => {};
+afterEach(() => { cleanup(); sessionStorage.clear(); localStorage.clear(); vi.unstubAllGlobals(); });
