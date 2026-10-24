@@ -20,3 +20,5 @@ input,select,textarea{width:100%;min-height:49px;padding:13px 15px;border-radius
 @media(max-width:480px){.header-cta{display:none}.header-actions{gap:2px}.site-header{gap:8px}.site-header .brand{font-size:1.18rem}}
 @media(max-width:767px){.panel-topline{flex-wrap:wrap}.panel .button-row>.button{white-space:normal;max-width:100%}.earnings-lines>div{flex-wrap:wrap}.earnings-lines dd{max-width:100%;white-space:normal}.privacy-actions{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}.role-feature:hover .role-image img{transform:none}.button:hover:not(:disabled){transform:none}}
+
+.harvest-upload-hint{margin-top:10px}
