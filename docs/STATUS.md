@@ -16,4 +16,30 @@ integration/dev-logistics combines the frontend dev branch, P2 market/platform, 
 
 Verification: 62 backend tests passed including optional PostgreSQL suites; 35 UI tests passed; API and UI production builds passed. Browser API-mode test used a real stored road route and generated a proposal, recorded farmer acceptance, and preserved it after an API restart. The local model adapter was intentionally unconfigured, so AI results were labelled deterministic fallback.
 
-See LOCAL-INTEGRATION.md for exact scope, test environment, commands and limitations. Prior individual-branch provider checks are not treated as evidence that this local integration has a live model connection.
+## Baseline verification
+
+- API TypeScript production build: passed with Node 24.
+- API tests: 12 passed with Node 24 (HTTP validation/stub behavior, fare math, Gemini tool validation, market rejection/fallback, extraction evidence checks, and repository mapping).
+- Web TypeScript/Vite production build: passed.
+- Built API startup and /health smoke check: passed.
+- Contract JSON Schema export and local Markdown link checks: passed.
+- PostgreSQL migration, listing/order persistence after a Node 24 API process restart, and /ready over HTTP: passed against configured Neon database. Synthetic check records were removed.
+- Gemini model lookup, structured output, tool call, live extraction HTTP, and code-filtered live market matching: passed with Gemini 3.5 Flash-Lite. Routing and deployed browser flow: not run; require remaining team integrations.
+
+
+## P4 verification
+
+Implemented on feat/p4-persisted-advocate-workflow. The default app still has stub market/logistics and returns an explicitly incomplete empty search; trip creation remains 503. Missing plans now return 404. No external hosting resources were created. Application .env values are never printed or committed.
+
+API production build passed on Node 24. All 26 API tests passed with PostgreSQL enabled, including the separate-process restart check. Contracts were regenerated through the existing exporter plus the supplemental P4 exporter.
+
+Node 24 checks cover full workflow generation/retrieval/decisions against injected fakes, minimum proceeds, wrong model selections/failure, source freshness, expiry, concurrent/repeated/conflicting decisions, routing/model budgets, queued cancellation, deadlines and fallback HTTP metadata. A disposable PostgreSQL 15 database verifies real plan SQL, restart retrieval in a separate process and independent concurrent decisions. Real market/logistics/provider integration and deployed API restart remain unverified because those owners' modules are still stubs. See handoffs/P4-INTEGRATION.md for the exact owner requests.
+
+Hosted database check, 24 October 2026: DATABASE_URL is configured in the ignored api/.env. DNS resolves, but connection attempts from the execution environment fail with ETIMEDOUT, including a retry configured with a 20-second connection timeout. No hosted migrations or test writes were performed. Hosted schema/persistence remains unverified. Configuring the URL alone does not change the default memory persistence adapter.
+
+
+## Hosted migration connectivity fix — 24 October 2026
+
+The earlier timeout is resolved for the migration command. System, Google and Cloudflare DNS agreed, and direct IPv4 TCP probes succeeded. Node's 250 ms automatic per-address connection timeout was too short on this connection: a read-only PostgreSQL probe succeeded after increasing it to 2,000 ms. The migration command now raises that timeout without lowering a larger operator setting, retains IPv4/IPv6 fallback, allows 20 seconds for overall connection setup, explicitly preserves strict TLS verification for sslmode=require, and closes the pool on connection failure.
+
+The fixed npm run db:migrate completed against the configured Neon database with "Initial migration already applied". The application tables and migration ledger exist. Latest verification: API production build passed; 29 tests passed and the optional isolated PostgreSQL test was skipped in this run. This change fixes the migration command; API repository wiring and live module integration remain separate work.
