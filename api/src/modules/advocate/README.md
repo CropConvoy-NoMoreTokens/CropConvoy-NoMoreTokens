@@ -1,3 +1,7 @@
 # P4: farmer advocate
 
-reviewOptions accepts ReviewInput with the listing and full QuoteSnapshot records, loaded by workflow through LogisticsService.getQuote. P3 implements the authoritative quote lookup. Never infer gross/net from language-model prose. Coordinate any interface change with docs/CONTRACTS.md. Add prompt.ts, tools.ts and tests here. See docs/handoffs/P4-WORKFLOW-ADVOCATE.md.
+reviewOptions accepts the listing and full QuoteSnapshot records obtained through authoritative LogisticsService.getQuote. Code verifies integer money, minimum net, source IDs, detour measurements, timing and required true hard-rule outcomes. The highest feasible net within the evaluated set wins, with quote ID as deterministic tie-breaker.
+
+prompt.ts and tools.ts define an allowlisted normalized model response. Live review allows one initial model call and one repair, then deterministic fallback. Models cannot override feasibility, select unknown/lower-net IDs or provide authoritative prose. Workflow persists fixed observable review/trace text and labels fallback mode.
+
+P3 must confirm the canonical ruleOutcomes keys documented in docs/CONTRACTS.md. Current logistics is still a stub; synthetic test geometry is never a live transport quote.

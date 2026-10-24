@@ -2,27 +2,68 @@
   "purpose": "Synthetic isolated-test outputs only. These IDs are not records in a running API. The quote is an arithmetic example, not a validated shipment.",
   "market": {
     "listingId": "44444444-4444-4444-8444-444444444444",
-    "candidateOrderIds": ["55555555-5555-4555-8555-555555555555"],
-    "reasons": { "55555555-5555-4555-8555-555555555555": "Synthetic tomato order with enough demand and partial fulfillment enabled." }
+    "candidateOrderIds": [
+      "55555555-5555-4555-8555-555555555555"
+    ],
+    "reasons": {
+      "55555555-5555-4555-8555-555555555555": "Synthetic tomato order with enough demand and partial fulfillment enabled."
+    }
   },
   "logistics": {
-    "options": [{
-      "orderId": "55555555-5555-4555-8555-555555555555",
-      "tripId": "66666666-6666-4666-8666-666666666666",
-      "quoteId": "77777777-7777-4777-8777-777777777777",
-      "extraDistanceM": 6000, "deliveryAt": "2026-10-25T06:00:00Z", "transportMinor": 95000
-    }],
+    "options": [
+      {
+        "orderId": "55555555-5555-4555-8555-555555555555",
+        "tripId": "66666666-6666-4666-8666-666666666666",
+        "quoteId": "77777777-7777-4777-8777-777777777777",
+        "extraDistanceM": 6000,
+        "deliveryAt": "2026-10-25T06:00:00Z",
+        "transportMinor": 95000
+      }
+    ],
     "rejections": []
   },
   "review": {
-    "verdict": "recommend", "selectedQuoteId": "77777777-7777-4777-8777-777777777777",
-    "reasonCodes": ["MINIMUM_MET"],
-    "explanation": "Synthetic example: net Rs. 16,650 meets the Rs. 16,000 minimum. Buyer and transporter approval remain pending."
+    "verdict": "recommend",
+    "selectedQuoteId": "77777777-7777-4777-8777-777777777777",
+    "reasonCodes": [
+      "MINIMUM_MET",
+      "BEST_EVALUATED_NET"
+    ],
+    "explanation": "Highest feasible net proceeds in the evaluated set. Buyer and transporter confirmations remain pending."
   },
   "incompleteGeneration": {
-    "outcome": "no_feasible_plan", "plan": null, "alternatives": [], "rejections": [],
-    "trace": [{ "role": "workflow", "action": "stub_generation", "outcome": "Matching and quote review are not implemented yet." }],
-    "searchComplete": false
+    "outcome": "no_feasible_plan",
+    "plan": null,
+    "alternatives": [],
+    "rejections": [],
+    "trace": [
+      {
+        "role": "market",
+        "action": "find_candidates",
+        "outcome": "0 buyer candidates evaluated"
+      },
+      {
+        "role": "advocate",
+        "action": "review",
+        "outcome": "NO_FEASIBLE_QUOTE"
+      }
+    ],
+    "searchComplete": false,
+    "mode": "stub"
   },
-  "rejectionCodes": ["CAPACITY_EXCEEDED", "DEMAND_TOO_SMALL", "PARTIAL_FILL_NOT_ALLOWED", "WRONG_DIRECTION", "OUTSIDE_CORRIDOR", "AMBIGUOUS_ROUTE", "EXCESS_DETOUR_DISTANCE", "EXCESS_DETOUR_TIME", "NOT_READY_AT_PICKUP", "DELIVERY_TOO_LATE", "SNAP_TOO_FAR", "ROUTING_UNAVAILABLE", "BELOW_MINIMUM_NET"]
+  "rejectionCodes": [
+    "CAPACITY_EXCEEDED",
+    "DEMAND_TOO_SMALL",
+    "PARTIAL_FILL_NOT_ALLOWED",
+    "WRONG_DIRECTION",
+    "OUTSIDE_CORRIDOR",
+    "AMBIGUOUS_ROUTE",
+    "EXCESS_DETOUR_DISTANCE",
+    "EXCESS_DETOUR_TIME",
+    "NOT_READY_AT_PICKUP",
+    "DELIVERY_TOO_LATE",
+    "SNAP_TOO_FAR",
+    "ROUTING_UNAVAILABLE",
+    "BELOW_MINIMUM_NET"
+  ]
 }

@@ -10,7 +10,7 @@ Implement the shared LlmClient adapter using the provider the team already has a
 
 Implement extractHarvest with schema-constrained output, null/missing fields and useful questions. Do not guess a missing price, quantity or exact date. Use explicit localTimeContext; always require farmer confirmation via the publish endpoint. During planning, implement searchOrders tools and findMarket: validate listing and candidate IDs, exact crop, sufficient remaining demand, availability and agreed partial-fill policy; return at most three existing order IDs. Add prompt.ts/tools.ts, fixtures and rejection tests in your module. LLM failure should allow clearly labeled manual entry/deterministic matching, not disguised fixture reasoning.
 
-Wire the adapters supplied by P3 and services supplied by P4 in app.ts/dependencies.ts. Switch persistence metadata/readiness only after repositories are truly PostgreSQL-backed. API_STUBS=false currently fails closed on unfinished modules; setting it is not an implementation. Add deployment configuration as needed. Verify the hosting proxy topology before configuring Express trust proxy/rate limiting. Deploy Railway only with the team lead's hosting authorization.
+Wire the adapters supplied by P3 and services supplied by P4 in app.ts/dependencies.ts. Switch persistence metadata/readiness only after repositories are truly PostgreSQL-backed. API_STUBS=false currently fails closed on unfinished modules; setting it is not an implementation. Add deployment configuration as needed. Verify the hosting proxy topology before configuring Express trust proxy/rate limiting. Deploy Render only with the team lead's hosting authorization.
 
 ## First slice
 
