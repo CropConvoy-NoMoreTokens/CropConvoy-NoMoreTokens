@@ -127,6 +127,9 @@ export async function authorizeRequest(deps: Dependencies, user: AuthUser,
     await requireListingOwner(deps, user, (body as { listingId?: unknown } | null)?.listingId);
     return;
   }
+  if (method==='GET' && (path==='/plans' || /^\/approvals\/[^/]+$/.test(path))) return;
+  const approval=path.match(/^\/plans\/([^/]+)\/(buyer|driver)-decision$/);
+  if (method==='POST' && approval) { requireRole(user,approval[2]==='buyer'?'buyer':'transporter'); return; }
   const plan = path.match(/^\/plans\/([^/]+)$/);
   if (method === 'GET' && plan) {
     requireRole(user, 'farmer'); await requirePlanOwner(deps, user, plan[1]); return;

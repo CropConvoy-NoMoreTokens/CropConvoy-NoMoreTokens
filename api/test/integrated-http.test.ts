@@ -4,6 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {Pool} from 'pg';
 import type {AddressInfo} from 'node:net';
+import {createMarketRepository} from '../src/modules/market/repository.js';
 import {createApp} from '../src/app.js';
 import {setup} from '../src/modules/logistics/test-fixtures.js';
 import {demoUsers} from '../src/core/auth.js';
@@ -57,9 +58,17 @@ test('real modules integrate over HTTP: persist sources, route, quote, review, a
     const harvestsResponse=await fetch(base+'/api/listings?demoFarmerId='+demoUsers[0].id,{headers:demoAuthHeaders(tokens,'/api/listings')});
     assert.equal(harvestsResponse.status,200);
     assert.deepEqual((await harvestsResponse.json()).data.map((row:{id:string})=>row.id),[listing.id]);
-    const otherHarvests=await fetch(base+'/api/listings?demoFarmerId='+randomUUID(),{headers:demoAuthHeaders(tokens,'/api/listings')});
-    assert.equal(otherHarvests.status,403);
-    assert.equal((await fetch(base+'/api/listings?demoFarmerId=invalid',{headers:demoAuthHeaders(tokens,'/api/listings')})).status,422);
+    const otherFarmerId=randomUUID();
+    const foreignListing=await createMarketRepository(deps).createListing({...listingInput,demoFarmerId:otherFarmerId});
+    for (const suffix of ['', '?demoFarmerId='+otherFarmerId, '?demoFarmerId=invalid']) {
+      const response=await fetch(base+'/api/listings'+suffix,{headers:demoAuthHeaders(tokens,'/api/listings')});
+      assert.equal(response.status,200);
+      const rows=(await response.json()).data;
+      assert.deepEqual(rows.map((row:{id:string})=>row.id),[listing.id]);
+      assert.ok(!rows.some((row:{id:string})=>row.id===foreignListing.id));
+    }
+    assert.equal((await fetch(base+'/api/listings')).status,401);
+    assert.equal((await fetch(base+'/api/listings',{headers:demoAuthHeaders(tokens,'/api/orders')})).status,403);
     const persistedResponse=await fetch(base+'/api/plans/'+plan.id,{headers:demoAuthHeaders(tokens,'/api/plans/'+plan.id)});
     assert.equal(persistedResponse.status,200);
     const persisted=await persistedResponse.json();

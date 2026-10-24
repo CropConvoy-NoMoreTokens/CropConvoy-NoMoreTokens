@@ -36,6 +36,11 @@ export function createWorkflowService(deps: Dependencies, market: MarketReposito
   };
   return {
     async generate(listingId) {
+      if (deps.persistence==='postgres' && deps.db.transaction) {
+        const {rows}=await deps.db.query("SELECT p.id FROM plans p WHERE listing_id=$1 AND (status='confirmed' OR (status='farmer_accepted_pending_confirmations' AND expires_at>$2))",[listingId,deps.clock.now().toISOString()]);
+        if(rows.length) throw new ApiError(409,'ACTIVE_PROPOSAL','This harvest already has an active accepted proposal');
+      }
+
       const budget = createBudget(deps);
       // Reserve a small part of the total deadline for storing already evaluated results.
       const totalMs = Math.min(45_000, Math.max(1, Number.isFinite(deps.maxPlanMs) ? deps.maxPlanMs : 45_000));

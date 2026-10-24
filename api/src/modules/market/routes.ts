@@ -24,10 +24,16 @@ export function registerRoutes(router: Router, deps: Dependencies, repository: M
   });
   router.post('/api/listings', async (req, res) => reply(res, deps, await repository.createListing(listingInputSchema.parse(req.body)), 201));
   router.get('/api/listings', async (req, res) => {
-    const farmerId = idSchema.parse(req.query.demoFarmerId);
     const userId = (res.locals.authUser as { id: string } | undefined)?.id;
-    if (userId && farmerId !== userId) throw new ApiError(403, 'OWNER_MISMATCH', 'Listing owner must match the signed-in farmer');
-    return reply(res, deps, await repository.listListings(farmerId));
+    // Authenticated requests never choose an owner through a query parameter.
+    const farmerId = userId ?? idSchema.parse(req.query.demoFarmerId);
+    const listings=await repository.listListings(farmerId);
+    if(!deps.db.transaction) return reply(res,deps,listings);
+    const {rows}=await deps.db.query(`SELECT DISTINCT ON (p.listing_id) p.listing_id,p.id,
+      CASE WHEN p.status IN ('proposed','farmer_accepted_pending_confirmations') AND p.expires_at<=now() THEN 'expired' ELSE p.status END AS status
+      FROM plans p JOIN listings l ON l.id=p.listing_id WHERE l.demo_farmer_id=$1 ORDER BY p.listing_id,p.created_at DESC,p.id DESC`,[farmerId]);
+    return reply(res,deps,listings.map(row=>({...row,latestProposal:rows.find(p=>p.listing_id===row.id)??null})));
+
   });
   router.get('/api/listings/:id', async (req, res) => reply(res, deps, await repository.getListing(idSchema.parse(req.params.id))));
   router.get('/api/orders', async (_req, res) => {

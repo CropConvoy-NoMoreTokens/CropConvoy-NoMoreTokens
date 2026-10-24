@@ -14,12 +14,12 @@ export const weightDistanceTripInputSchema = tripInputSchema.extend({
   pricingVersion: z.literal('weight-distance-v2'),
 });
 export const weightDistanceTripSchema = weightDistanceTripInputSchema.extend({
-  id: idSchema, status: z.literal('open'), createdAt: dateSchema,
+  availableKg: z.number().int().nonnegative(), id: idSchema, status: z.enum(['open','closed','booked','withdrawn']), createdAt: dateSchema,
   routeGeoJSON: geometrySchema, routeDistanceM: measurement.positive(),
   routeDurationS: measurement.positive(), routeProvider: z.string().min(1), routeProfile: z.string().min(1),
 });
-export const listingSchema = listingInputSchema.extend({ id: idSchema, status: z.literal('open'), createdAt: dateSchema });
-export const orderSchema = orderInputSchema.extend({ id: idSchema, status: z.literal('open'), createdAt: dateSchema });
+export const listingSchema = listingInputSchema.extend({ id: idSchema, status: z.enum(['open','closed','booked','withdrawn']), createdAt: dateSchema });
+export const orderSchema = orderInputSchema.extend({ remainingKg: z.number().int().nonnegative(), id: idSchema, status: z.enum(['open','closed','booked','withdrawn']), createdAt: dateSchema });
 export type WeightDistanceTripInput = z.infer<typeof weightDistanceTripInputSchema>;
 export type WeightDistanceTrip = z.infer<typeof weightDistanceTripSchema>;
 export type WeightDistanceQuote = QuoteSnapshot & {

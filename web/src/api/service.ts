@@ -1,9 +1,11 @@
 import { apiRequest } from './client';
 import { createDemoService } from './demo';
-import type { CropConvoyService, ExtractResult, PlaceCandidate, Listing, Order, Trip, GenerationResult, Plan } from './types';
+import type { CropConvoyService, ExtractResult, PlaceCandidate, ProposalPage, ProposalSummary, Listing, Order, Trip, GenerationResult, Plan } from './types';
 const post = <T,>(path: string, body: unknown) => apiRequest<T>(path, { method: 'POST', body: JSON.stringify(body) });
 export function createHttpService(): CropConvoyService {
-  return { mode: 'api', extract: input => post<ExtractResult>('/api/harvest/extract', input),
+  return { mode: 'api',
+    listPlans: filter => { const query = new URLSearchParams(Object.entries(filter).filter((pair): pair is [string, string] => Boolean(pair[1]))); return apiRequest<ProposalPage>('/api/plans?' + query); },
+    approve: (id, role, decision) => post<ProposalSummary>(`/api/plans/${encodeURIComponent(id)}/${role}-decision`, { decision }), extract: input => post<ExtractResult>('/api/harvest/extract', input),
     readHarvestImage: file => apiRequest<{ text: string }>('/api/harvest/image-text', {
       method: 'POST', body: file, headers: { 'Content-Type': file.type },
     }),

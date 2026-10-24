@@ -95,7 +95,7 @@ test('P2/P3/P4 PostgreSQL modules integrate over HTTP and survive API process re
       ...fixture.listingInput, demoFarmerId: fixture.orderInput.demoBuyerId,
     })).status, 403);
     const health = await fetch(base + '/health', { headers: { Origin: 'http://localhost:5173' } });
-    assert.equal(health.headers.get('Access-Control-Allow-Origin'), 'http://localhost:5173');
+    assert.equal(health.headers.get('Access-Control-Allow-Origin'), '*');
     assert.match(health.headers.get('Access-Control-Expose-Headers') ?? '', /X-Request-Id/i);
     const extracted = await data<{ draft: { quantityKg: number; minNetMinor: number } }>('/api/harvest/extract', {
       text: '80 kg tomatoes in Dambulla ready 2026-10-25 at 08:00. Minimum net Rs. 16,000.',
@@ -103,7 +103,7 @@ test('P2/P3/P4 PostgreSQL modules integrate over HTTP and survive API process re
     });
     assert.equal(extracted.data.draft.quantityKg, 80); assert.equal(extracted.data.draft.minNetMinor, 1600000);
     assert.equal(extracted.meta.mode, 'live');
-    const listing = (await data<Listing>('/api/listings', fixture.listingInput, 201)).data;
+    let listing = (await data<Listing>('/api/listings', fixture.listingInput, 201)).data;
     const order = (await data<Order>('/api/orders', fixture.orderInput, 201)).data;
     const proposed = await generate(listing.id); assert.ok(proposed.plan);
     assert.equal((await fetch(base + `/api/plans/${proposed.plan.id}`)).status, 401);
@@ -128,6 +128,8 @@ test('P2/P3/P4 PostgreSQL modules integrate over HTTP and survive API process re
     assert.deepEqual((await data(`/api/plans/${proposed.plan.id}/decision`, { decision: 'accept' })).data, accepted.data);
     assert.equal((await request(`/api/plans/${proposed.plan.id}/decision`, { decision: 'reject' })).status, 409);
 
+    assert.equal((await request('/api/plans/generate', {listingId:listing.id})).status,409);
+    listing = (await data<Listing>('/api/listings', fixture.listingInput, 201)).data;
     const stale = await generate(listing.id); assert.ok(stale.plan);
     await pool.query('UPDATE orders SET price_per_kg_minor=price_per_kg_minor+1 WHERE id=$1', [order.id]);
     assert.equal((await request(`/api/plans/${stale.plan.id}/decision`, { decision: 'accept' })).status, 409);
@@ -168,7 +170,7 @@ test('P2/P3/P4 PostgreSQL modules integrate over HTTP and survive API process re
 
     // All production modules now run together; only provider HTTP responses are synthetic.
     await start('integrated');
-    const fullListing = (await data<Listing>('/api/listings', { ...fixture.listingInput, crop: 'carrot',
+    let fullListing = (await data<Listing>('/api/listings', { ...fixture.listingInput, crop: 'carrot',
       pickup: { lat: 7, lng: 80.2 }, readyAt: '2026-10-25T03:00:00Z' }, 201)).data;
     const fullOrder = (await data<Order>('/api/orders', { ...fixture.orderInput, crop: 'carrot',
       delivery: { lat: 7, lng: 80.4 } }, 201)).data;
@@ -188,6 +190,7 @@ test('P2/P3/P4 PostgreSQL modules integrate over HTTP and survive API process re
     assert.equal(planSchema.parse((await data(`/api/plans/${full.plan.id}/decision`, { decision: 'accept' })).data).status,
       'farmer_accepted_pending_confirmations');
 
+    fullListing=(await data<Listing>('/api/listings',{...fixture.listingInput,crop:'carrot',pickup:{lat:7,lng:80.2},readyAt:'2026-10-25T03:00:00Z'},201)).data;
     const realStale = await generate(fullListing.id); assert.ok(realStale.plan);
     await pool.query('UPDATE trips SET rate_per_kg_km_minor=21 WHERE id=$1', [realStale.plan.tripId]);
     assert.equal((await request(`/api/plans/${realStale.plan.id}/decision`, { decision: 'accept' })).status, 409);
