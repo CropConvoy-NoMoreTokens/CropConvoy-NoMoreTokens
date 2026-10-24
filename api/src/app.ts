@@ -13,6 +13,20 @@ import { registerRoutes as logisticsRoutes } from './modules/logistics/routes.js
 import { createWorkflowService } from './modules/workflow/service.js';
 import { registerRoutes as workflowRoutes } from './modules/workflow/routes.js';
 
+function sanitizeForLog(data: unknown): unknown {
+  if (!data || typeof data !== 'object') return data;
+  if (Array.isArray(data)) return data.map(sanitizeForLog);
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+    if (/password|secret|token|credential|authorization/i.test(key)) {
+      out[key] = '[REDACTED]';
+    } else {
+      out[key] = sanitizeForLog(value);
+    }
+  }
+  return out;
+}
+
 export function createApp(deps: Dependencies, origins: string[]) {
   const app = express();
   app.disable('x-powered-by');
@@ -20,6 +34,17 @@ export function createApp(deps: Dependencies, origins: string[]) {
     const started = process.hrtime.bigint();
     res.locals.requestId = randomUUID();
     res.setHeader('X-Request-Id', res.locals.requestId);
+
+    const origJson = res.json.bind(res);
+    res.json = (body: any) => {
+      const durationMs = Number(process.hrtime.bigint() - started) / 1e6;
+      console.log(`[API Response] ${res.statusCode} ${req.method} ${req.path} (${durationMs.toFixed(1)}ms)`, {
+        requestId: res.locals.requestId,
+        body: sanitizeForLog(body),
+      });
+      return origJson(body);
+    };
+
     res.once('finish', () => console.log(JSON.stringify({ event: 'request',
       requestId: res.locals.requestId, method: req.method, path: req.path,
       status: res.statusCode, durationMs: Number(process.hrtime.bigint() - started) / 1e6 })));
@@ -30,6 +55,16 @@ export function createApp(deps: Dependencies, origins: string[]) {
     else callback(new ApiError(403, 'ORIGIN_NOT_ALLOWED', 'This browser origin is not allowed'));
   } }));
   app.use(express.json({ limit: '64kb' }));
+  app.use((req, res, next) => {
+    const hasQuery = req.query && Object.keys(req.query).length > 0;
+    const hasBody = req.body && Object.keys(req.body).length > 0;
+    console.log(`[API Request] ${req.method} ${req.path}`, {
+      requestId: res.locals.requestId,
+      ...(hasQuery ? { query: sanitizeForLog(req.query) } : {}),
+      ...(hasBody ? { body: sanitizeForLog(req.body) } : {}),
+    });
+    next();
+  });
   // Per-process IP limit for the demo; a multi-instance deployment needs a shared store.
   // P2 must configure trust proxy for the verified hosting topology before public deployment.
   app.use('/api', rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false,
