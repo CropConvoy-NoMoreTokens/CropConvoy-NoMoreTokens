@@ -27,6 +27,8 @@ UI calls CropConvoyService from src/api/types.ts. src/api/service.ts selects the
 |---|---|
 | API-mode sign in / restore / sign out | POST /api/auth/login; GET /api/auth/me; POST /api/auth/logout |
 | Review description | POST /api/harvest/extract |
+| Read text from a harvest image | POST /api/harvest/image-text with raw JPEG, PNG, or WebP bytes; fills the editable description only |
+| Resolve extracted pickup town/village | POST /api/locations/resolve with `{place}`; choose a returned candidate or set the pin manually |
 | Publish / reload harvest | POST /api/listings; GET /api/listings/:id |
 | List / save buyer order | GET /api/orders; POST /api/orders |
 | List / save trip | GET /api/trips; POST /api/trips |
@@ -49,6 +51,8 @@ Public accounts: farmer / FarmerDemo123!, buyer / BuyerDemo123!, transporter / T
 cropconvoy.demo.v1 holds records in sessionStorage; if storage is blocked the current page uses memory. The dataset begins with one synthetic tomato order and one trip. All records are shared across demo roles in the same tab, so a buyer/trip added before switching to farmer can be explored. Closing the tab ends the session under normal browser behavior; browser session restoration can retain sessionStorage.
 
 Extraction is a deterministic demo parser for explicitly stated supported crop, integer kg, Rs/LKR minimum, Dambulla text and a UTC ISO date. It never invents a missing date/price. Publication is always explicit and requires confirmation of the form and pin.
+In API mode, Gemini can extract English or Sinhala descriptions. The UI sends only the extracted place name to the backend lookup. Place results are approximate: the first result moves the map pin by default, other results remain selectable, and no result leaves the pin unset. The farmer must verify the exact roadside pickup point before publishing.
+In API mode, the farmer can upload a clear image of notes (JPEG/PNG/WebP, under 3 MB). Gemini transcribes visible English or Sinhala writing and adds it to the description textbox. The farmer can edit the text before choosing Review details. No listing is created by upload, and the server does not persist the image. Empty or failed transcription leaves existing text intact. Demo mode has no simulated image OCR.
 
 Demo generation is an illustrative UI scenario, not AI/routing or a market/feasibility engine. It filters the sample orders for crop/quantity/partial permission and sample trips for capacity; uses the supplied Rs.950 transport arithmetic example and verifies the minimum. Road, direction and timing are not evaluated; searchComplete remains false and all route geometry/distances/durations remain null. Proposal amounts are clearly labeled. Decisions are simulated, idempotent for the same choice, and reject conflicting/expired decisions. There is no reservation or booking.
 

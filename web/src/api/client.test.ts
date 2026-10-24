@@ -20,4 +20,16 @@ describe('HTTP integration contract', () => {
     expect(new Headers(fetcher.mock.calls[0][1].headers).get('Authorization')).toBe('Bearer test-token');
     expect(getApiToken()).toBeNull();
   });
+  test('uploads an image with its MIME type and bearer token rather than JSON', async () => {
+    setApiToken('test-token');
+    const fetcher = vi.fn().mockResolvedValue(mockResponse(200, { data: { text: '80 kg tomatoes' },
+      meta: { mode: 'live', persistence: 'postgres', requestId: 'test' } }));
+    vi.stubGlobal('fetch', fetcher);
+    const file = new File(['image bytes'], 'harvest.png', { type: 'image/png' });
+    expect((await createHttpService().readHarvestImage(file)).data.text).toBe('80 kg tomatoes');
+    const options = fetcher.mock.calls[0][1] as RequestInit;
+    expect(options.body).toBe(file);
+    expect(new Headers(options.headers).get('Content-Type')).toBe('image/png');
+    expect(new Headers(options.headers).get('Authorization')).toBe('Bearer test-token');
+  });
 });

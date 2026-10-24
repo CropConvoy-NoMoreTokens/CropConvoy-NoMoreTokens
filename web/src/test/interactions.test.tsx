@@ -73,7 +73,7 @@ describe('demo accounts and role workflows', () => {
     const service = createDemoService(); const publish = vi.spyOn(service, 'createListing');
     const user = start('/app/farmer', 'farmer', service);
     await user.click(await screen.findByRole('button', { name: 'Try sample' })); await user.click(screen.getByRole('button', { name: 'Review details' }));
-    await screen.findByRole('button', { name: 'Publish harvest' }); expect(publish).not.toHaveBeenCalled();
+    await screen.findByText(/Approximate place found/); expect(publish).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Publish harvest' })); expect(screen.getAllByText('Confirm that the pickup pin is correct.').length).toBeGreaterThan(0);
     await user.click(screen.getByLabelText('I have checked the pickup pin.')); await user.click(screen.getByLabelText('I confirm these harvest details are correct.'));
     await user.click(screen.getByRole('button', { name: 'Publish harvest' })); await user.click(screen.getByRole('button', { name: 'Confirm publication' }));
@@ -83,6 +83,52 @@ describe('demo accounts and role workflows', () => {
     expect(await screen.findByText('Pending buyer and transporter confirmations.', { selector: 'strong' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Refresh proposal' }));
     await user.click(screen.getByRole('button', { name: 'New harvest' })); await user.click(screen.getByRole('button', { name: 'Cancel' })); expect(screen.getByRole('heading', { name: '80 kg of tomatoes' })).toBeInTheDocument();
+  });
+  test('Sinhala harvest place defaults the map to the first candidate without confirming the pin', async () => {
+    const service = createDemoService();
+    vi.spyOn(service, 'extract').mockResolvedValue({ data: { draft: { crop: 'tomato', quantityKg: 80,
+      locationText: 'දඹුල්ල', readyAt: null, minNetMinor: null }, missingFields: ['readyAt', 'minNetMinor'],
+      questions: ['Enter the exact date and minimum proceeds.'] },
+    meta: { mode: 'demo', persistence: 'session', requestId: 'test' } });
+    const resolve = vi.spyOn(service, 'resolveLocation').mockResolvedValue({ data: { candidates: [
+      { label: 'දඹුල්ල town', point: { lat: 7.8742, lng: 80.6511 } },
+      { label: 'දඹුල්ල village', point: { lat: 7.9, lng: 80.7 } },
+    ] }, meta: { mode: 'demo', persistence: 'session', requestId: 'test' } });
+    const user = start('/app/farmer', 'farmer', service);
+    await user.type(await screen.findByLabelText('Tell us about your harvest'), 'දඹුල්ලේ තක්කාලි කිලෝ 80');
+    await user.click(screen.getByRole('button', { name: 'Review details' }));
+    expect(await screen.findByRole('button', { name: 'දඹුල්ල town' })).toBeInTheDocument();
+    expect(resolve).toHaveBeenCalledWith('දඹුල්ල');
+    expect(screen.getByLabelText('Pickup latitude')).toHaveValue(7.8742);
+    expect(screen.getByLabelText('I have checked the pickup pin.')).not.toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'දඹුල්ල village' }));
+    expect(screen.getByLabelText('Pickup latitude')).toHaveValue(7.9);
+    expect(screen.getByLabelText('I have checked the pickup pin.')).not.toBeChecked();
+  });
+  test('an uploaded image fills the harvest textbox for review without publishing', async () => {
+    sessionStorage.setItem('cropconvoy.apiToken', 'test-token');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: {
+      id: DEMO_IDS.farmer, username: 'farmer', role: 'farmer' }, meta: { mode: 'live', persistence: 'postgres', requestId: 'test' } }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } })));
+    const service = createDemoService(); service.mode = 'api';
+    const readImage = vi.spyOn(service, 'readHarvestImage').mockResolvedValue({ data: { text: 'දඹුල්ලේ තක්කාලි කිලෝ 80' },
+      meta: { mode: 'live', persistence: 'postgres', requestId: 'test' } });
+    const publish = vi.spyOn(service, 'createListing');
+    const user = start('/app/farmer', 'farmer', service);
+    const file = new File(['image bytes'], 'notes.png', { type: 'image/png' });
+    const uploadButton = await screen.findByRole('button', { name: 'Upload photo' });
+    expect(uploadButton.parentElement).toContainElement(screen.getByRole('button', { name: 'Try sample' }));
+    const input = screen.getByTestId('harvest-image-file');
+    const openPicker = vi.spyOn(input, 'click');
+    await user.click(uploadButton);
+    expect(openPicker).toHaveBeenCalledOnce();
+    await user.upload(input, file);
+    expect(await screen.findByLabelText('Tell us about your harvest')).toHaveValue('දඹුල්ලේ තක්කාලි කිලෝ 80');
+    expect(readImage).toHaveBeenCalledWith(file);
+    expect(publish).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Review details' }));
+    expect(await screen.findByRole('button', { name: 'Publish harvest' })).toBeInTheDocument();
+    expect(publish).not.toHaveBeenCalled();
   });
   test('buyer validates, saves exact money, clears only after confirmation and refreshes', async () => {
     const service = createDemoService(); const save = vi.spyOn(service, 'createOrder'); const user = start('/app/buyer', 'buyer', service);

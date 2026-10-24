@@ -1,9 +1,13 @@
 import { apiRequest } from './client';
 import { createDemoService } from './demo';
-import type { CropConvoyService, ExtractResult, Listing, Order, Trip, GenerationResult, Plan } from './types';
+import type { CropConvoyService, ExtractResult, PlaceCandidate, Listing, Order, Trip, GenerationResult, Plan } from './types';
 const post = <T,>(path: string, body: unknown) => apiRequest<T>(path, { method: 'POST', body: JSON.stringify(body) });
 export function createHttpService(): CropConvoyService {
   return { mode: 'api', extract: input => post<ExtractResult>('/api/harvest/extract', input),
+    readHarvestImage: file => apiRequest<{ text: string }>('/api/harvest/image-text', {
+      method: 'POST', body: file, headers: { 'Content-Type': file.type },
+    }),
+    resolveLocation: place => post<{ candidates: PlaceCandidate[] }>('/api/locations/resolve', { place }),
     createListing: input => post<Listing>('/api/listings', input), getListing: id => apiRequest<Listing>(`/api/listings/${encodeURIComponent(id)}`),
     listOrders: () => apiRequest<Order[]>('/api/orders'), createOrder: input => post<Order>('/api/orders', input),
     listTrips: () => apiRequest<Trip[]>('/api/trips'), createTrip: input => post<Trip>('/api/trips', input),

@@ -1,9 +1,12 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { createGeminiClient } from '../src/core/llm.js';
 import { extractResultSchema } from '../src/core/contracts.js';
 import { extractSystem, marketSystem } from '../src/modules/market/prompt.js';
+import { extractHarvestWithMode } from '../src/modules/market/service.js';
+import type { Dependencies } from '../src/core/dependencies.js';
 
 const key = process.env.LLM_API_KEY;
 const model = process.env.LLM_MODEL;
@@ -31,6 +34,22 @@ const extraction = await client.complete({ role: 'market', system: extractSystem
     localTimeContext: { now: '2026-10-24T00:00:00.000Z', timeZone: 'Asia/Colombo' } },
   tools: [], signal: AbortSignal.timeout(60000) });
 extractResultSchema.shape.draft.parse((extraction as { draft?: unknown }).draft);
+const sinhalaText = 'දඹුල්ලේ තක්කාලි කිලෝ 80 තියෙනවා. හෙට උදේ 8ට සූදානම්. අවම ශුද්ධ මුදල රු. 16000.';
+const sinhalaExtraction = await extractHarvestWithMode({ text: sinhalaText,
+  localTimeContext: { now: '2026-10-24T04:30:00.000Z', timeZone: 'Asia/Colombo' } },
+  { mode: 'live', llm: client } as Dependencies);
+assert.equal(sinhalaExtraction.mode, 'live', 'Sinhala extraction fell back to manual entry');
+const sinhalaDraft = sinhalaExtraction.result.draft;
+assert.equal(sinhalaDraft.crop, 'tomato');
+assert.equal(sinhalaDraft.quantityKg, 80);
+assert.ok(sinhalaDraft.locationText && sinhalaText.includes(sinhalaDraft.locationText),
+  'Sinhala location must be a substring of the original description');
+console.log('Gemini Sinhala harvest extraction: passed');
+const imageBytes = await readFile(new URL('../test/fixtures/harvest-note.png', import.meta.url));
+const imageText = await client.readImage?.({ bytes: imageBytes, mimeType: 'image/png', signal: AbortSignal.timeout(60000) });
+assert.ok(imageText && /80\s*kg/i.test(imageText) && /tomatoes/i.test(imageText) && /Dambulla/i.test(imageText),
+  'Gemini did not transcribe the synthetic harvest note');
+console.log('Gemini harvest image transcription: passed');
 const listingId = randomUUID();
 const call = await client.complete({ role: 'market', system: marketSystem,
   input: { listingId }, tools: [{ name: 'searchOrders', description: 'Search eligible orders',

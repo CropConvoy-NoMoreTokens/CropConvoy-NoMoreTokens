@@ -14,6 +14,7 @@ export interface LlmClient {
   complete(input: { role: 'market' | 'logistics' | 'advocate'; system: string; input: unknown;
     tools: Array<{ name: string; description: string; parameters: unknown }>;
     signal: AbortSignal }): Promise<unknown>;
+  readImage?(input: { bytes: Buffer; mimeType: 'image/jpeg' | 'image/png' | 'image/webp'; signal: AbortSignal }): Promise<string>;
 }
 export interface RoutingClient {
   route(points: Point[], signal: AbortSignal): Promise<{

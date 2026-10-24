@@ -11,6 +11,7 @@ export type TripInput = { demoTransporterId: string; start: Point; end: Point; d
 export type Trip = TripInput & { id: string; status: 'open'; createdAt: string; routeGeoJSON: LineString | null; routeDistanceM: number | null; routeDurationS: number | null; routeProvider: string; routeProfile: string };
 export type ExtractInput = { text: string; localTimeContext: { now: string; timeZone: 'Asia/Colombo' } };
 export type ExtractResult = { draft: { crop: Crop | null; quantityKg: number | null; locationText: string | null; readyAt: string | null; minNetMinor: number | null }; missingFields: string[]; questions: string[] };
+export type PlaceCandidate = { label: string; point: Point };
 export type QuoteSnapshot = { ratePerKgKmMinor: number; pricingVersion: 'weight-distance-v2'; routeCarryDistanceM: number | null; shipmentChargeMinor: number | null; detourChargeMinor: number | null; expiresAt: string; quoteId: string; listingId: string; orderId: string; tripId: string; quantityKg: number; pricePerKgMinor: number; baseMinor: number; perKmMinor: number; handlingMinor: number; grossMinor: number; transportMinor: number; netMinor: number; baseGeometry: LineString | null; modifiedGeometry: LineString | null; baseDistanceM: number | null; modifiedDistanceM: number | null; extraDistanceM: number | null; baseDurationS: number | null; modifiedDurationS: number | null; extraTimeS: number | null; pickupAt: string; deliveryAt: string; generatedAt: string; ruleOutcomes: Record<string, boolean> };
 export type TraceEntry = { role: 'market' | 'logistics' | 'advocate' | 'workflow'; action: string; outcome: string };
 export type Plan = { id: string; listingId: string; orderId: string; tripId: string; quantityKg: number; status: 'proposed' | 'farmer_accepted_pending_confirmations' | 'rejected'; quoteSnapshot: QuoteSnapshot; review: { verdict: 'recommend' | 'try_alternative' | 'no_feasible_plan'; selectedQuoteId: string | null; reasonCodes: string[]; explanation: string }; trace: TraceEntry[]; expiresAt: string; createdAt: string };
@@ -20,6 +21,8 @@ export type Result<T> = { data: T; meta: Meta };
 export interface CropConvoyService {
   mode: 'demo' | 'api';
   extract(input: ExtractInput): Promise<Result<ExtractResult>>;
+  readHarvestImage(file: File): Promise<Result<{ text: string }>>;
+  resolveLocation(place: string): Promise<Result<{ candidates: PlaceCandidate[] }>>;
   createListing(input: ListingInput): Promise<Result<Listing>>;
   getListing(id: string): Promise<Result<Listing>>;
   listOrders(): Promise<Result<Order[]>>;

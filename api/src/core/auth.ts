@@ -95,6 +95,8 @@ export async function authorizeRequest(deps: Dependencies, user: AuthUser,
   method: string, path: string, body: unknown): Promise<void> {
   if ((method === 'GET' && path === '/auth/me') || (method === 'POST' && path === '/auth/logout')) return;
   if (method === 'POST' && path === '/harvest/extract') { requireRole(user, 'farmer'); return; }
+  if (method === 'POST' && path === '/harvest/image-text') { requireRole(user, 'farmer'); return; }
+  if (method === 'POST' && path === '/locations/resolve') { requireRole(user, 'farmer'); return; }
   if (method === 'POST' && path === '/listings') {
     requireRole(user, 'farmer');
     if ((body as { demoFarmerId?: unknown } | null)?.demoFarmerId !== user.id)

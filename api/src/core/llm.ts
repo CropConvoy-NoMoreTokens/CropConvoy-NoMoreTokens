@@ -20,6 +20,8 @@ const candidatesSchema = { type: 'object', additionalProperties: false,
   required: ['candidateOrderIds'], properties: { candidateOrderIds: {
     type: 'array', maxItems: 3, items: { type: 'string' },
   } } };
+const imageTextSchema = { type: 'object', additionalProperties: false, required: ['text'],
+  properties: { text: { type: 'string' } } };
 
 export function createGeminiClient(key: string, model: string, baseUrl = 'https://generativelanguage.googleapis.com'): LlmClient {
   // Accept dashboard/gateway style labels but address the Gemini REST model directly.
@@ -28,6 +30,31 @@ export function createGeminiClient(key: string, model: string, baseUrl = 'https:
   const base = new URL(baseUrl);
   if (base.protocol !== 'https:') throw new Error('LLM_BASE_URL must use HTTPS');
   return {
+    async readImage({ bytes, mimeType, signal }) {
+      signal.throwIfAborted();
+      const url = new URL(`/v1beta/models/${modelId}:generateContent`, base);
+      const response = await fetch(url, { method: 'POST', signal,
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: 'Transcribe only text visibly present in this image. Preserve Sinhala and English text, numbers and line breaks. Do not infer missing words or harvest facts. Return JSON with a text field; use an empty string if no text is readable.' }] },
+          contents: [{ role: 'user', parts: [
+            { inline_data: { mime_type: mimeType, data: bytes.toString('base64') } },
+            { text: 'Read the visible writing exactly. This is a transcription for the farmer to review, not a confirmed harvest listing.' },
+          ] }],
+          generationConfig: { temperature: 0, responseMimeType: 'application/json', responseJsonSchema: imageTextSchema },
+        }),
+      });
+      if (!response.ok) throw new ApiError(503, `LLM_HTTP_${response.status}`, 'Image reading is unavailable');
+      const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+      const textPart = payload.candidates?.[0]?.content?.parts?.find(part => typeof part.text === 'string')?.text;
+      if (!textPart || textPart.length > 12000) throw new ApiError(503, 'LLM_INVALID_RESPONSE', 'Image reading returned an invalid response');
+      let parsed: unknown;
+      try { parsed = JSON.parse(textPart); }
+      catch { throw new ApiError(503, 'LLM_INVALID_RESPONSE', 'Image reading returned invalid JSON'); }
+      const result = z.strictObject({ text: z.string().max(5000) }).safeParse(parsed);
+      if (!result.success) throw new ApiError(503, 'LLM_INVALID_RESPONSE', 'Image reading returned invalid text');
+      return result.data.text.trim();
+    },
     async complete({ role, system, input, tools, signal }) {
       signal.throwIfAborted();
       const names = new Set<string>();

@@ -13,7 +13,9 @@ The integrated app is tested locally. No hosting resources or remote branch upda
 - Liveness: /health. Readiness: /ready (requires persistent source/plan/quote tables and the new rate column).
 - Configure the verified reverse-proxy trust policy before relying on the IP limiter. Current rate limiting is per process.
 - Select a permitted hosted routing provider; the public OSRM demo was used only for a one-off local smoke check.
+- Configure an approved HTTPS place provider with `GEOCODING_BASE_URL`. The default public Nominatim endpoint is limited to low-traffic demos; follow its [usage policy](https://operations.osmfoundation.org/policies/nominatim/) and enforce the whole application's request limit across instances.
 - Keep all model, database and provider secrets on the backend.
+- The farmer image reader accepts raw JPEG/PNG/WebP uploads up to 3 MB; ensure the hosting ingress permits that body size. Images are sent to Gemini for transcription and are not stored by this API.
 
 ## Vercel UI
 

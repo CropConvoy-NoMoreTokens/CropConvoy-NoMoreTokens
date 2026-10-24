@@ -25,6 +25,7 @@ export function createDemoService(storage: Pick<Storage, 'getItem' | 'setItem'> 
   const getPlan = (id: string) => { const row = memory.plans.find(x => x.id === id); if (!row) throw new ApiError('That proposal could not be found in this demo session.', 404, 'NOT_FOUND'); return row; };
   return {
     mode: 'demo',
+    async readHarvestImage() { throw new ApiError('Image reading is available when connected to the Gemini API.', 503, 'IMAGE_READING_UNAVAILABLE'); },
     async extract(input: ExtractInput) {
       const text = input.text;
       const quantity = text.match(/(?:^|[^\d.\-])(\d+)\s*kg\b/i);
@@ -34,6 +35,10 @@ export function createDemoService(storage: Pick<Storage, 'getItem' | 'setItem'> 
       const draft: ExtractResult['draft'] = { crop, quantityKg: quantity ? Number(quantity[1]) : null, minNetMinor: price ? Math.round(Number(price[1].replaceAll(',', '')) * 100) : null, locationText: /Dambulla/i.test(text) ? 'Dambulla' : null, readyAt: iso && Number.isFinite(Date.parse(iso[0])) ? iso[0] : null };
       const missingFields = Object.entries(draft).filter(([, value]) => value === null).map(([name]) => name);
       return result({ draft, missingFields, questions: missingFields.length ? ['Please complete the missing fields and confirm the pickup pin. Demo extraction only reads explicitly stated values.'] : ['Review all details and confirm your pickup pin before publishing.'] });
+    },
+    async resolveLocation(place: string) {
+      const known = /dambulla|දඹුල්ල/iu.test(place) ? [{ label: 'Dambulla (sample town centre)', point: { lat: 7.8742, lng: 80.6511 } }] : [];
+      return result({ candidates: known });
     },
     async createListing(input: ListingInput) { const row: Listing = { ...input, id: uuid(), status: 'open', createdAt: new Date().toISOString() }; memory.listings.push(row); save(); return result(row); },
     async getListing(id) { return result(getListing(id)); },

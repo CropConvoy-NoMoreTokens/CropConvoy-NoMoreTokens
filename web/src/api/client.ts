@@ -6,7 +6,7 @@ export class ApiError extends Error {
 const base = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<Result<T>> {
   const headers = new Headers(options.headers);
-  if (options.body) headers.set('Content-Type', 'application/json');
+  if (typeof options.body === 'string' && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   const token = path === '/api/auth/login' ? null : getApiToken();
   if (token && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
   let response: Response;

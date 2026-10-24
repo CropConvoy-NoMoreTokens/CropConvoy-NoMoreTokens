@@ -84,7 +84,7 @@ export function createApp(deps: Dependencies, origins: string[]) {
     if (error instanceof ApiError) { res.status(error.status).json({ error: { code: error.code, message: error.message } }); return; }
     const bodyError = error as { type?: string } | null;
     if (bodyError?.type === 'entity.parse.failed') { res.status(400).json({ error: { code: 'INVALID_JSON', message: 'Request must contain valid JSON' } }); return; }
-    if (bodyError?.type === 'entity.too.large') { res.status(413).json({ error: { code: 'BODY_TOO_LARGE', message: 'Request exceeds 64 KB' } }); return; }
+    if (bodyError?.type === 'entity.too.large') { res.status(413).json({ error: { code: 'BODY_TOO_LARGE', message: _req.path === '/api/harvest/image-text' ? 'Image exceeds 3 MB' : 'Request exceeds 64 KB' } }); return; }
     console.error(JSON.stringify({ requestId: res.locals.requestId, event: 'request_failed' }));
     res.status(503).json({ error: { code: 'DEPENDENCY_UNAVAILABLE', message: 'A required service is unavailable' } });
   };

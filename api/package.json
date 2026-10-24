@@ -15,6 +15,7 @@
     "db:check": "tsx scripts/check-persistence.ts",
     "auth:check": "tsx scripts/check-auth.ts",
     "llm:check": "tsx scripts/check-llm.ts",
+    "geocode:check": "tsx scripts/check-geocode.ts",
     "market:check": "tsx scripts/check-market.ts",
     "api:restart-check": "tsx scripts/check-restart.ts",
     "contracts:export": "tsx scripts/export-contracts.ts"

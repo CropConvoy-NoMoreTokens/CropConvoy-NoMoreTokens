@@ -59,6 +59,12 @@ test('role and owner checks reject cross-workspace writes and inaccessible recor
   await assert.rejects(authorizeRequest(deps, farmer, 'POST', '/listings', { demoFarmerId: buyer.id }),
     (error: unknown) => error instanceof ApiError && error.code === 'OWNER_MISMATCH');
   await authorizeRequest(deps, farmer, 'POST', '/listings', { demoFarmerId: farmer.id });
+  await authorizeRequest(deps, farmer, 'POST', '/locations/resolve', { place: 'දඹුල්ල' });
+  await authorizeRequest(deps, farmer, 'POST', '/harvest/image-text', undefined);
+  await assert.rejects(authorizeRequest(deps, buyer, 'POST', '/harvest/image-text', undefined),
+    (error: unknown) => error instanceof ApiError && error.status === 403);
+  await assert.rejects(authorizeRequest(deps, buyer, 'POST', '/locations/resolve', { place: 'දඹුල්ල' }),
+    (error: unknown) => error instanceof ApiError && error.status === 403);
   await authorizeRequest(deps, farmer, 'GET', `/listings/${listingId}`, undefined);
   await assert.rejects(authorizeRequest(deps, buyer, 'GET', '/orders', undefined).then(() =>
     authorizeRequest(deps, buyer, 'POST', '/orders', { demoBuyerId: farmer.id })),

@@ -19,18 +19,30 @@ function emptyDraft(): ExtractResult['draft'] {
 }
 function normalizeExtraction(value: unknown, input: ExtractInput): ExtractResult {
   const draft = extractResultSchema.shape.draft.parse((value as { draft?: unknown } | null)?.draft);
-  const source = input.text;
-  if (draft.crop && !new RegExp(`\\b${draft.crop === 'potato' ? 'potato(?:es)?' : draft.crop === 'tomato' ? 'tomato(?:es)?' : 'carrots?'}\\b`, 'i').test(source))
+  const source = input.text.normalize('NFC');
+  const digits = source.replace(/[෦-෯]/g, digit => String(digit.codePointAt(0)! - 0x0de6));
+  const cropWords = {
+    tomato: /\btomato(?:es)?\b|තක්කාලි/iu,
+    potato: /\bpotato(?:es)?\b|අර්තාපල්|අල(?![\p{L}])/iu,
+    carrot: /\bcarrots?\b|කැරට්/iu,
+  };
+  if (draft.crop && !cropWords[draft.crop].test(source))
     draft.crop = null;
-  const quantities = [...source.matchAll(/(?<![\d.,])(\d[\d,]*)\s*(?:kg|kilograms?)\b/gi)]
-    .map(match => Number(match[1].replaceAll(',', '')));
+  const quantities = [
+    ...digits.matchAll(/(?<![\d.,])(\d[\d,]*)\s*(?:kg|kilograms?|කිලෝ(?:ග්‍රෑම්)?)(?![\p{L}])/giu),
+    ...digits.matchAll(/(?:කිලෝ(?:ග්‍රෑම්)?)\s*(\d[\d,]*)(?![\d.,])/gu),
+  ].map(match => Number(match[1].replaceAll(',', '')));
   if (draft.quantityKg !== null && !quantities.includes(draft.quantityKg)) draft.quantityKg = null;
-  if (draft.locationText && !source.toLowerCase().includes(draft.locationText.toLowerCase()))
-    draft.locationText = null;
-  const exactDay = /\b(?:today|tomorrow|\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))/i.test(source);
-  const exactTime = /\b(?:\d{1,2}:\d{2}|\d{1,2}\s*(?:am|pm)|noon|midnight)\b/i.test(source);
+  if (draft.locationText) {
+    const place = draft.locationText.normalize('NFC').trim();
+    draft.locationText = place.length >= 2 && place.length <= 120 && source.toLocaleLowerCase().includes(place.toLocaleLowerCase())
+      ? place : null;
+  }
+  const exactDay = /\b(?:today|tomorrow|\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))/i.test(digits) || /අද|හෙට/u.test(source);
+  const exactTime = /\b(?:\d{1,2}:\d{2}|\d{1,2}\s*(?:am|pm)|noon|midnight)\b/i.test(digits) ||
+    /(?:උදේ|සවස|රෑ|පෙරවරු|පස්වරු|පෙ\.\s*ව\.|ප\.\s*ව\.)\s*\d{1,2}(?::\d{2})?\s*(?:ට|ටත්)?/u.test(digits);
   if (!exactDay || !exactTime) draft.readyAt = null;
-  const net = source.match(/(?:at least|minimum|net|after transport|proceeds)[^.!?\n]{0,80}?(?:Rs\.?|LKR)\s*([\d,]+(?:\.\d{1,2})?)/i);
+  const net = digits.match(/(?:at least|minimum|net|after transport|proceeds|අවම|ශුද්ධ|ප්‍රවාහන(?:යෙන්| වියදම්)[^\n]{0,25}අඩු)[^!?\n]{0,80}?(?:Rs\.?|LKR|රුපියල්|රු\.)\s*([\d,]+(?:\.\d{1,2})?)/iu);
   const statedMinor = net ? Math.round(Number(net[1].replaceAll(',', '')) * 100) : null;
   if (draft.minNetMinor !== statedMinor) draft.minNetMinor = null;
   const missingFields = fields.filter(field => draft[field] === null);

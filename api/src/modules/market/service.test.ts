@@ -81,3 +81,28 @@ test('a fractional kilogram statement cannot be misread as a whole kilogram', as
     localTimeContext: { now: '2026-10-24T00:00:00.000Z', timeZone: 'Asia/Colombo' } }, deps);
   assert.equal(result.result.draft.quantityKg, null);
 });
+
+test('Sinhala harvest facts preserve the original place text and verify stated values', async () => {
+  const { deps } = setup([], async () => ({ draft: {
+    crop: 'tomato', quantityKg: 80, locationText: 'දඹුල්ල',
+    readyAt: '2026-10-25T02:30:00.000Z', minNetMinor: 1600000,
+  } }));
+  const result = await extractHarvestWithMode({
+    text: 'දඹුල්ලේ තක්කාලි කිලෝ 80 තියෙනවා. හෙට උදේ 8ට සූදානම්. අවම ශුද්ධ මුදල රු. 16000.',
+    localTimeContext: { now: '2026-10-24T04:30:00.000Z', timeZone: 'Asia/Colombo' },
+  }, deps);
+  assert.equal(result.mode, 'live');
+  assert.deepEqual(result.result.draft, { crop: 'tomato', quantityKg: 80, locationText: 'දඹුල්ල',
+    readyAt: '2026-10-25T02:30:00.000Z', minNetMinor: 1600000 });
+  assert.deepEqual(result.result.missingFields, []);
+});
+
+test('a translated or invented location is rejected', async () => {
+  const { deps } = setup([], async () => ({ draft: {
+    crop: 'tomato', quantityKg: 80, locationText: 'Dambulla', readyAt: null, minNetMinor: null,
+  } }));
+  const result = await extractHarvestWithMode({ text: 'දඹුල්ලේ තක්කාලි කිලෝ 80',
+    localTimeContext: { now: '2026-10-24T00:00:00.000Z', timeZone: 'Asia/Colombo' } }, deps);
+  assert.equal(result.result.draft.locationText, null);
+  assert.equal(result.result.draft.quantityKg, 80);
+});
