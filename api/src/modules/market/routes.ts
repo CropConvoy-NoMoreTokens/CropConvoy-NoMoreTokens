@@ -11,7 +11,12 @@ export function registerRoutes(router: Router, deps: Dependencies, repository: M
     return reply(res, deps, result);
   });
   router.post('/api/listings', async (req, res) => reply(res, deps, await repository.createListing(listingInputSchema.parse(req.body)), 201));
-  router.get('/api/listings', async (req, res) => reply(res, deps, await repository.listListings(idSchema.parse(req.query.demoFarmerId))));
+  router.get('/api/listings', async (req, res) => {
+    const userId = (res.locals.authUser as { id: string } | undefined)?.id;
+    // Authenticated requests never choose an owner through a query parameter.
+    const farmerId = userId ?? idSchema.parse(req.query.demoFarmerId);
+    return reply(res, deps, await repository.listListings(farmerId));
+  });
   router.get('/api/listings/:id', async (req, res) => reply(res, deps, await repository.getListing(idSchema.parse(req.params.id))));
   router.get('/api/orders', async (_req, res) => {
     const orders = await repository.listOrders();

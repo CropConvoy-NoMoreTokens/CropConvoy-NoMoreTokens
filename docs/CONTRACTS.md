@@ -161,3 +161,8 @@ Current quote schemas require pricingVersion=weight-distance-v2, ratePerKgKmMino
 
 `GET /api/listings?demoFarmerId=<UUID>` returns the listing array for the supplied prototype farmer ID, newest first (createdAt then ID descending), in the normal data/meta envelope. Missing or invalid UUIDs return 422. The farmer workspace loads this on entry and offers Open harvest and refresh. Existing listings require no migration. The query parameter filters records; it is not authentication or authorization. Public role selection still uses the shared prototype farmer ID.
 
+
+
+### Farmer list ownership after auth integration
+
+Authenticated `GET /api/listings` derives the farmer ID from the server session; any supplied `demoFarmerId` is ignored. Requests without a session receive 401 and other roles receive 403. Only the keyless in-memory stub retains the required UUID query parameter. The frontend uses the signed-in profile ID for its list request. This supersedes earlier query-based ownership notes.

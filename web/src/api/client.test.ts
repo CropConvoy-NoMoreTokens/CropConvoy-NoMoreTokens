@@ -1,7 +1,7 @@
 import { describe, test, expect, vi } from 'vitest';
 import { apiRequest, ApiError } from './client';
 import { createHttpService } from './service';
-import { getApiToken, setApiToken } from './authSession';
+import { getApiToken, setApiToken, clearApiToken } from './authSession';
 const mockResponse = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'X-Request-Id': 'test-request' } });
 describe('HTTP integration contract', () => {
   test('preserves field errors, HTTP status, code and request ID', async () => {
@@ -20,4 +20,23 @@ describe('HTTP integration contract', () => {
     expect(new Headers(fetcher.mock.calls[0][1].headers).get('Authorization')).toBe('Bearer test-token');
     expect(getApiToken()).toBeNull();
   });
+});
+
+
+test('request logs redact automatic and custom authorization headers while fetch receives them', async () => {
+  const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+  try {
+    setApiToken('session-secret');
+    const fetcher = vi.fn().mockImplementation(async () => mockResponse(200, { data: [], meta: { mode: 'live' } }));
+    vi.stubGlobal('fetch', fetcher);
+    await apiRequest('/api/listings');
+    await apiRequest('/api/listings', { headers: { AUTHORIZATION: 'Bearer custom-secret', 'X-Api-Token': 'extra-secret' } });
+    expect(new Headers(fetcher.mock.calls[0][1].headers).get('Authorization')).toBe('Bearer session-secret');
+    expect(new Headers(fetcher.mock.calls[1][1].headers).get('Authorization')).toBe('Bearer custom-secret');
+    const logs = JSON.stringify(log.mock.calls);
+    expect(logs).not.toContain('session-secret');
+    expect(logs).not.toContain('custom-secret');
+    expect(logs).not.toContain('extra-secret');
+    expect(logs).toContain('[REDACTED]');
+  } finally { log.mockRestore(); clearApiToken(); }
 });

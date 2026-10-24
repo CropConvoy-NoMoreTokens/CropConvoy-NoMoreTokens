@@ -49,7 +49,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   console.log(`[API Request] ${method} ${path}`, {
     url: `${base}${path}`,
-    headers: Object.fromEntries(headers.entries()),
+    headers: sanitizeForLog(Object.fromEntries(headers.entries())),
     ...(bodyForLog !== undefined ? { body: bodyForLog } : {}),
   });
 

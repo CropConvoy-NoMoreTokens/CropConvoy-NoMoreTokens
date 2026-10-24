@@ -41,10 +41,10 @@ export default function Farmer() {
   const planId = params.get('plan');
   const loadHarvests = useCallback(async () => {
     setLoadingHarvests(true); setHarvestsError(undefined);
-    try { const result = await service.listListings(DEMO_IDS.farmer); setHarvests(result.data); }
+    try { const result = await service.listListings(identity?.id ?? DEMO_IDS.farmer); setHarvests(result.data); }
     catch (e) { setHarvestsError(e); }
     finally { setLoadingHarvests(false); }
-  }, [service]);
+  }, [service, identity?.id]);
   useEffect(() => { void loadHarvests(); }, [loadHarvests]);
   function openHarvest(row: Listing) {
     setListing(row); setPlan(null); setOutcome(null); setError(undefined); setErrors({});
