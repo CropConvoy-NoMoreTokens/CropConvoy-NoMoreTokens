@@ -3,6 +3,8 @@
 Implemented on 24 October 2026. Open the local website's Insights link:
 http://127.0.0.1:4173/#/insights
 
+Current integration: the default serving device is CPU, and the browser calls the Node /api/ml proxy. See ../docs/ML-DEPLOYMENT.md for the current local/Render setup. VITE_ML_API_BASE_URL is ignored. The training and GPU verification notes below record the original feature work.
+
 ## What changed
 
 - Shared training/inference features fix previous-year target-month prices across all six horizons.

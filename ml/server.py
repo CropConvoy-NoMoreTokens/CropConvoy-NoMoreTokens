@@ -1,6 +1,8 @@
-"""Synthetic decision support with verified CUDA inference."""
+"""Synthetic decision support with explicit CPU or verified CUDA inference."""
 import json
 import gc
+import hmac
+import re
 import hashlib
 import math
 import os
@@ -16,7 +18,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from .config import (CLIMATE_PROFILES, CROPS, DATA_SOURCE, DEFAULT_AREA_HA,
     DEFAULT_LOSS_RATE, DEFAULT_MARKETING_TRANSPORT_LKR_KG, GENERATOR_VERSION,
@@ -27,10 +29,10 @@ from .features import (DATASET_HASH_FORMAT, FEATURE_VERSION, PRICE_FEATURE_COLUM
 BASE = Path(__file__).parent
 ARTIFACTS = BASE / "artifacts"
 DATA_DIR = BASE / "data"
-INFERENCE_DEVICE = os.environ.get("ML_INFERENCE_DEVICE", "cuda:0")
+INFERENCE_DEVICE = os.environ.get("ML_INFERENCE_DEVICE", "cpu")
 _state = {}
-# Keep CUDA contexts on one long-lived worker rather than transient HTTP threads.
-_gpu_worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="cropconvoy-cuda")
+# Serialize inference and preserve CUDA contexts when explicitly configured.
+_inference_worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="cropconvoy-inference")
 
 def _unavailable(message="Predictions are temporarily unavailable. Please try again."):
     return HTTPException(503, detail={"code": "SERVICE_UNAVAILABLE", "message": message})
@@ -42,37 +44,42 @@ def _invalid(field, message):
 def _device(model):
     return json.loads(model.save_config())["learner"]["generic_param"]["device"]
 
+def _device_matches(actual):
+    expected = "cuda:0" if INFERENCE_DEVICE == "cuda" else INFERENCE_DEVICE
+    return actual == expected
+
+
 def _check_data():
     if not _state.get("data_ready"):
         raise _unavailable("Historical data is unavailable.")
 
 def _check_ready():
     if not _state.get("ready"):
-        raise _unavailable("The prediction service is unavailable. GPU and models must be ready.")
+        raise _unavailable("The prediction service is unavailable. The configured inference device and models must be ready.")
     try:
-        fallback = _gpu_worker.submit(lambda: any(
-            not _device(_state[f"{n}_model"]).startswith("cuda") for n in ("price", "yield")
+        fallback = _inference_worker.submit(lambda: any(
+            not _device_matches(_device(_state[f"{n}_model"])) for n in ("price", "yield")
         )).result()
     except Exception as exc:
         _state["ready"] = False
-        raise _unavailable("GPU readiness could not be verified.") from exc
+        raise _unavailable("Inference readiness could not be verified.") from exc
     if fallback:
         _state["ready"] = False
-        raise _unavailable("GPU verification failed. Predictions have been paused.")
+        raise _unavailable("Inference device verification failed. Predictions have been paused.")
 
 def _history(produce, market):
     df = _state["price_history"]
     return df[(df.produce_id == produce) & (df.market_id == market)].sort_values("month")
 
 def _predict(name, values):
-    return _gpu_worker.submit(_predict_on_gpu, name, values).result()
+    return _inference_worker.submit(_predict_on_worker, name, values).result()
 
-def _predict_on_gpu(name, values):
+def _predict_on_worker(name, values):
     try:
         model = _state[f"{name}_model"]
-        result = float(model.predict(xgb.DMatrix(np.asarray([values], dtype=np.float32)))[0])
-        if not math.isfinite(result) or not _device(model).startswith("cuda"):
-            raise ValueError("Invalid output or CPU fallback")
+        result = float(model.predict(xgb.DMatrix(np.asarray([values], dtype=np.float32), nthread=1))[0])
+        if not math.isfinite(result) or not _device_matches(_device(model)):
+            raise ValueError("Invalid output or unexpected inference device")
         return result
     except Exception as exc:
         _state["ready"] = False
@@ -105,7 +112,7 @@ def _predict_yield(crop, region, month, soil, ph, irrigation):
     return result
 
 def load_models():
-    _gpu_worker.submit(release_models).result()
+    _inference_worker.submit(release_models).result()
     _state.update(ready=False, data_ready=False, inference_device="unavailable")
     try:
         history = pd.read_csv(DATA_DIR / "price_data.csv")
@@ -129,8 +136,10 @@ def load_models():
             digest = dataset_sha256(path) if hash_format == DATASET_HASH_FORMAT else hashlib.sha256(path.read_bytes()).hexdigest()
             if digest != manifest["dataset_sha256"][name]:
                 raise RuntimeError("Training data changed after training. Retrain before serving.")
-        if not INFERENCE_DEVICE.startswith("cuda"):
-            raise RuntimeError("This demo requires CUDA. CPU fallback is disabled.")
+        if not re.fullmatch(r"cpu|cuda(?::[0-9]+)?", INFERENCE_DEVICE):
+            raise RuntimeError("ML_INFERENCE_DEVICE must be cpu, cuda or cuda:N.")
+        if os.environ.get("RENDER") == "true" and not os.environ.get("ML_API_KEY"):
+            raise RuntimeError("Configure ML_API_KEY before serving on Render.")
         for name, size in (("price", 13), ("yield", 9)):
             model = xgb.Booster()
             model.load_model(str(ARTIFACTS / f"{name}_model.ubj"))
@@ -139,21 +148,23 @@ def load_models():
                 raise RuntimeError(f"{name} model feature schema does not match.")
             if name == "price" and pre["feature_cols"] != PRICE_FEATURE_COLUMNS:
                 raise RuntimeError("Price feature order does not match.")
-            model.set_param({"device": INFERENCE_DEVICE})
+            model.set_param({"device": INFERENCE_DEVICE, "nthread": 1})
             _state[f"{name}_model"] = model
             _state[f"{name}_preprocessors"] = pre
         _predict_price("tomato", "dambulla", add_months(cutoff, 1))
         _predict_yield("carrot", "mild_midcountry", 1, "loam", 6.0, True)
         devices = [_device(_state[f"{name}_model"]) for name in ("price", "yield")]
-        if any(not d.startswith("cuda") for d in devices) or len(set(devices)) != 1:
-            raise RuntimeError("CUDA verification failed: CPU fallback detected.")
+        if any(not _device_matches(d) for d in devices) or len(set(devices)) != 1:
+            raise RuntimeError("Inference device verification failed: unexpected fallback detected.")
         _state.update(ready=True, inference_device=devices[0])
         try:
+            if INFERENCE_DEVICE == "cpu":
+                raise OSError("CPU inference configured")
             result = subprocess.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
                 capture_output=True, text=True, timeout=5)
             _state["gpu_name"] = result.stdout.strip() or "CUDA GPU"
         except (OSError, subprocess.TimeoutExpired):
-            _state["gpu_name"] = "CUDA GPU"
+            _state["gpu_name"] = "CPU" if INFERENCE_DEVICE == "cpu" else "CUDA GPU"
         print(f"[ML API] Both models verified on {devices[0]}", flush=True)
     except Exception as exc:
         _state.update(ready=False, inference_device="unavailable", startup_error=str(exc))
@@ -169,12 +180,20 @@ async def lifespan(app):
     try:
         yield
     finally:
-        _gpu_worker.submit(release_models).result()
+        _inference_worker.submit(release_models).result()
 
 app = FastAPI(title="CropConvoy ML API", version="2.0.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware,
-    allow_origins=[f"http://{h}:{p}" for h in ("localhost", "127.0.0.1") for p in (5173,4173)],
-    allow_methods=["GET","POST"], allow_headers=["Content-Type"])
+@app.middleware("http")
+async def service_auth(request, call_next):
+    # Public liveness/readiness for Render. Analytical routes are server-to-server.
+    if request.url.path != "/health":
+        expected = os.environ.get("ML_API_KEY", "")
+        if not expected and os.environ.get("RENDER") == "true":
+            return JSONResponse(status_code=503, content={"detail": {"code": "SERVICE_UNAVAILABLE", "message": "Service authentication is not configured."}})
+        provided = request.headers.get("X-ML-API-Key", "")
+        if expected and not hmac.compare_digest(expected.encode(), provided.encode()):
+            return JSONResponse(status_code=401, content={"detail": {"code": "UNAUTHORIZED", "message": "Service authentication required."}})
+    return await call_next(request)
 
 @app.get("/health")
 def health():
@@ -183,7 +202,7 @@ def health():
         "data_cutoff":_state["data_cutoff"], "data_source":DATA_SOURCE,
         "server_date":colombo_today().isoformat(), "xgboost_version":xgb.__version__,
         "generator_version":GENERATOR_VERSION, "feature_version":FEATURE_VERSION,
-        "gpu_name":_state.get("gpu_name","CUDA GPU")}
+        "gpu_name":_state.get("gpu_name","CPU" if INFERENCE_DEVICE == "cpu" else "CUDA GPU")}
 
 @app.get("/v1/catalog")
 def catalog():

@@ -84,7 +84,7 @@ The approval/history flow requires `003_booking_approvals.sql` through the migra
 
 For database setup, read [api/db/README.md](api/db/README.md) and run `npm run db:migrate` from api/ only after configuring DATABASE_URL. Migration execution is separate from server startup.
 
-The Insights page adds synthetic price forecasts and planting comparisons through a separate Python ML service. See [ML setup and tests](ml/README.md). Predictions require NVIDIA CUDA; the Node API does not serve ML endpoints. Set `VITE_ML_API_BASE_URL` to that service's public HTTPS URL when deploying Insights. Missing GPU/models produce an explicit unavailable state, never replacement predictions.
+The Insights page uses the Node API at `/api/ml/*`, which proxies a separately running Python ML service. CPU inference is the default; CUDA is optional. The backend uses `ML_API_BASE_URL=http://localhost:8001` locally and a server-only ML_API_KEY when configured. The frontend uses only VITE_API_BASE_URL. See [local ML setup](ml/README.md) and [Render deployment guidelines](docs/ML-DEPLOYMENT.md). Missing models return an explicit unavailable state; forecasts remain synthetic and never change saved marketplace prices.
 
 For Render, set Root Directory to `api`, Build Command to `npm ci --include=dev && npm run build`, and Start Command to `npm start`. API installation also compiles through postinstall, and the build checks the generated `dist/server.js` entry point. See [deployment settings and troubleshooting](docs/DEPLOYMENT.md) and [render.yaml](render.yaml); existing Dashboard services must apply these settings explicitly and rebuild after changes.
 

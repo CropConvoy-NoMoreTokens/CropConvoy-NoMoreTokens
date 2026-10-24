@@ -2,10 +2,11 @@ import { ApiError } from './client';
 import type { MlHealth, MlCatalog, PriceHistoryResponse, PriceForecastRequest,
   PriceForecastResponse, PlantingRecommendationsRequest, PlantingRecommendationsResponse } from './mlTypes';
 
-const base = (import.meta.env.VITE_ML_API_BASE_URL || 'http://localhost:8001').replace(/\/$/, '');
+// ML credentials and its service URL live only on the Node backend.
+const base = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001').replace(/\/$/, '') + '/api/ml';
 
 async function mlRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const timeout = AbortSignal.timeout(15_000);
+  const timeout = AbortSignal.timeout(75_000);
   const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
   let response: Response;
   try {
@@ -20,7 +21,7 @@ async function mlRequest<T>(path: string, options: RequestInit = {}): Promise<T>
   try { payload = await response.json(); }
   catch { throw new ApiError('The prediction service returned an unreadable response.', response.status, 'INVALID_RESPONSE'); }
   if (!response.ok) {
-    const detail = payload.detail;
+    const detail = payload.detail ?? payload.error;
     const fields = Array.isArray(detail) ? detail.map((item: any) => ({
       path: (item.loc || []).filter((part: unknown) => part !== 'body').join('.'),
       message: String(item.msg || 'Check this value.').replace(/^Value error, /, ''),

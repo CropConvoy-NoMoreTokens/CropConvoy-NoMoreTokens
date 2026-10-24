@@ -27,7 +27,7 @@ export function Layout() {
   const nav = <><Link to="/?section=how-it-works" aria-current={section === 'how-it-works' ? 'page' : undefined}>How it works</Link><Link to="/?section=for-everyone" aria-current={section === 'for-everyone' ? 'page' : undefined}>For everyone</Link><Link to="/?section=faq" aria-current={section === 'faq' ? 'page' : undefined}>FAQs</Link><Link to="/insights" aria-current={location.pathname === '/insights' ? 'page' : undefined}>Insights</Link></>;
   const pages = [
     { title: 'How it works', description: 'Publish a harvest, find a match, review a proposal.', href: '/?section=how-it-works' },
-    { title: 'Insights', description: 'GPU-accelerated produce price forecasting and planting recommendations.', href: '/insights' },
+    { title: 'Insights', description: 'Synthetic produce price forecasts and planting recommendations.', href: '/insights' },
     { title: 'Farmer workspace', description: 'Harvest, pickup location and estimated proceeds.', href: '/app/farmer' },
     { title: 'Buyer workspace', description: 'Create and review crop orders.', href: '/app/buyer' },
     { title: 'Transporter workspace', description: 'Register a trip, capacity and pricing.', href: '/app/transporter' },

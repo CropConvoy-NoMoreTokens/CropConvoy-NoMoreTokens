@@ -3273,5 +3273,897 @@
       "mode"
     ],
     "additionalProperties": false
+  },
+  "MlForecastInput": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "produceId": {
+        "type": "string",
+        "enum": [
+          "tomato",
+          "potato",
+          "carrot",
+          "banana",
+          "papaya",
+          "pineapple"
+        ]
+      },
+      "marketId": {
+        "type": "string",
+        "enum": [
+          "dambulla",
+          "colombo",
+          "kandy"
+        ]
+      },
+      "targetMonth": {
+        "type": "string",
+        "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+      }
+    },
+    "required": [
+      "produceId",
+      "marketId",
+      "targetMonth"
+    ],
+    "additionalProperties": false
+  },
+  "MlPlantingInput": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "plantingMonth": {
+        "type": "string",
+        "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+      },
+      "regionProfile": {
+        "type": "string",
+        "enum": [
+          "warm_lowland",
+          "mild_midcountry",
+          "cool_upland"
+        ]
+      },
+      "marketId": {
+        "type": "string",
+        "enum": [
+          "dambulla",
+          "colombo",
+          "kandy"
+        ]
+      },
+      "areaHa": {
+        "type": "number",
+        "minimum": 0.1,
+        "maximum": 100
+      },
+      "soilType": {
+        "type": "string",
+        "enum": [
+          "loam",
+          "sandy_loam",
+          "clay"
+        ]
+      },
+      "soilPh": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 14
+      },
+      "irrigationAvailable": {
+        "type": "boolean"
+      },
+      "cultivationCostOverride": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string",
+          "enum": [
+            "tomato",
+            "potato",
+            "carrot"
+          ]
+        },
+        "additionalProperties": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        }
+      }
+    },
+    "required": [
+      "plantingMonth",
+      "regionProfile",
+      "marketId"
+    ],
+    "additionalProperties": false
+  },
+  "MlHistoryQuery": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "produceId": {
+        "type": "string",
+        "enum": [
+          "tomato",
+          "potato",
+          "carrot",
+          "banana",
+          "papaya",
+          "pineapple"
+        ]
+      },
+      "marketId": {
+        "type": "string",
+        "enum": [
+          "dambulla",
+          "colombo",
+          "kandy"
+        ]
+      }
+    },
+    "required": [
+      "produceId",
+      "marketId"
+    ],
+    "additionalProperties": false
+  },
+  "MlHealth": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "const": "ok"
+      },
+      "models_loaded": {
+        "type": "boolean",
+        "const": true
+      },
+      "inference_device": {
+        "type": "string",
+        "pattern": "^(cpu|cuda(:\\d+)?)$"
+      },
+      "server_date": {
+        "type": "string",
+        "format": "date",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+      },
+      "data_cutoff": {
+        "type": "string",
+        "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+      },
+      "data_source": {
+        "type": "string",
+        "const": "synthetic"
+      },
+      "feature_version": {
+        "type": "string",
+        "minLength": 1
+      },
+      "xgboost_version": {
+        "type": "string",
+        "minLength": 1
+      },
+      "generator_version": {
+        "type": "string",
+        "minLength": 1
+      },
+      "gpu_name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "status",
+      "models_loaded",
+      "inference_device",
+      "server_date",
+      "data_cutoff",
+      "data_source",
+      "feature_version",
+      "xgboost_version",
+      "generator_version"
+    ],
+    "additionalProperties": false
+  },
+  "MlCatalog": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "server_date": {
+        "type": "string",
+        "format": "date",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+      },
+      "data_cutoff": {
+        "anyOf": [
+          {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "forecast_months": {
+        "maxItems": 6,
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+        }
+      },
+      "planting_months": {
+        "maxItems": 3,
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+        }
+      },
+      "produce": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string",
+          "enum": [
+            "tomato",
+            "potato",
+            "carrot",
+            "banana",
+            "papaya",
+            "pineapple"
+          ]
+        },
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "label"
+          ],
+          "additionalProperties": false
+        },
+        "required": [
+          "tomato",
+          "potato",
+          "carrot",
+          "banana",
+          "papaya",
+          "pineapple"
+        ]
+      },
+      "markets": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string",
+          "enum": [
+            "dambulla",
+            "colombo",
+            "kandy"
+          ]
+        },
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "label"
+          ],
+          "additionalProperties": false
+        },
+        "required": [
+          "dambulla",
+          "colombo",
+          "kandy"
+        ]
+      },
+      "crops": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string",
+          "enum": [
+            "tomato",
+            "potato",
+            "carrot"
+          ]
+        },
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "duration_days": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "cost_lkr_ha": {
+              "type": "number",
+              "minimum": 0
+            },
+            "ref_yield_kg_ha": {
+              "type": "number",
+              "minimum": 0
+            },
+            "temp_range": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "ph_range": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "label",
+            "duration_days",
+            "cost_lkr_ha",
+            "ref_yield_kg_ha",
+            "temp_range",
+            "ph_range"
+          ],
+          "additionalProperties": false
+        },
+        "required": [
+          "tomato",
+          "potato",
+          "carrot"
+        ]
+      },
+      "climate_profiles": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string",
+          "enum": [
+            "warm_lowland",
+            "mild_midcountry",
+            "cool_upland"
+          ]
+        },
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "temp_mean": {
+              "type": "number"
+            },
+            "rainfall_mean": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "label",
+            "temp_mean",
+            "rainfall_mean"
+          ],
+          "additionalProperties": false
+        },
+        "required": [
+          "warm_lowland",
+          "mild_midcountry",
+          "cool_upland"
+        ]
+      },
+      "assumptions": {
+        "type": "object",
+        "properties": {
+          "loss_rate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "marketing_transport_lkr_kg": {
+            "type": "number",
+            "minimum": 0
+          },
+          "stress_price_discount": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "stress_yield_discount": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "data_source": {
+            "type": "string",
+            "const": "synthetic"
+          }
+        },
+        "required": [
+          "loss_rate",
+          "marketing_transport_lkr_kg",
+          "stress_price_discount",
+          "stress_yield_discount",
+          "data_source"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "server_date",
+      "data_cutoff",
+      "forecast_months",
+      "planting_months",
+      "produce",
+      "markets",
+      "crops",
+      "climate_profiles",
+      "assumptions"
+    ],
+    "additionalProperties": false
+  },
+  "MlHistory": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "produce_id": {
+        "type": "string",
+        "enum": [
+          "tomato",
+          "potato",
+          "carrot",
+          "banana",
+          "papaya",
+          "pineapple"
+        ]
+      },
+      "market_id": {
+        "type": "string",
+        "enum": [
+          "dambulla",
+          "colombo",
+          "kandy"
+        ]
+      },
+      "data_source": {
+        "type": "string",
+        "const": "synthetic"
+      },
+      "prices": {
+        "minItems": 1,
+        "maxItems": 2400,
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "month": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            },
+            "price_per_kg_minor": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "month",
+            "price_per_kg_minor"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "produce_id",
+      "market_id",
+      "data_source",
+      "prices"
+    ],
+    "additionalProperties": false
+  },
+  "MlForecast": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "produce_id": {
+        "type": "string",
+        "enum": [
+          "tomato",
+          "potato",
+          "carrot",
+          "banana",
+          "papaya",
+          "pineapple"
+        ]
+      },
+      "market_id": {
+        "type": "string",
+        "enum": [
+          "dambulla",
+          "colombo",
+          "kandy"
+        ]
+      },
+      "origin_month": {
+        "type": "string",
+        "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+      },
+      "target_month": {
+        "type": "string",
+        "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+      },
+      "horizon_months": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 6
+      },
+      "forecast_price_per_kg_minor": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+      },
+      "latest_known_price_per_kg_minor": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991
+      },
+      "previous_year_price_per_kg_minor": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "predicted_change_pct": {
+        "type": "number"
+      },
+      "data_source": {
+        "type": "string",
+        "const": "synthetic"
+      },
+      "inference_device": {
+        "type": "string",
+        "pattern": "^(cpu|cuda(:\\d+)?)$"
+      }
+    },
+    "required": [
+      "produce_id",
+      "market_id",
+      "origin_month",
+      "target_month",
+      "horizon_months",
+      "forecast_price_per_kg_minor",
+      "latest_known_price_per_kg_minor",
+      "previous_year_price_per_kg_minor",
+      "predicted_change_pct",
+      "data_source",
+      "inference_device"
+    ],
+    "additionalProperties": false
+  },
+  "MlRecommendations": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "planting_month": {
+        "type": "string",
+        "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+      },
+      "region_profile": {
+        "type": "string",
+        "enum": [
+          "warm_lowland",
+          "mild_midcountry",
+          "cool_upland"
+        ]
+      },
+      "market_id": {
+        "type": "string",
+        "enum": [
+          "dambulla",
+          "colombo",
+          "kandy"
+        ]
+      },
+      "soil_type": {
+        "type": "string",
+        "enum": [
+          "loam",
+          "sandy_loam",
+          "clay"
+        ]
+      },
+      "soil_ph": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 14
+      },
+      "irrigation_available": {
+        "type": "boolean"
+      },
+      "area_ha": {
+        "type": "number",
+        "minimum": 0.1,
+        "maximum": 100
+      },
+      "data_source": {
+        "type": "string",
+        "const": "synthetic"
+      },
+      "data_cutoff": {
+        "type": "string",
+        "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+      },
+      "inference_device": {
+        "type": "string",
+        "pattern": "^(cpu|cuda(:\\d+)?)$"
+      },
+      "all_negative_returns": {
+        "type": "boolean"
+      },
+      "stress_assumptions": {
+        "type": "object",
+        "properties": {
+          "price_discount": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "yield_discount": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "price_discount",
+          "yield_discount"
+        ],
+        "additionalProperties": false
+      },
+      "recommendations": {
+        "maxItems": 3,
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "crop_id": {
+              "type": "string",
+              "enum": [
+                "tomato",
+                "potato",
+                "carrot"
+              ]
+            },
+            "crop_label": {
+              "type": "string"
+            },
+            "planting_date": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+            },
+            "harvest_date": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+            },
+            "harvest_month": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            },
+            "predicted_yield_kg_ha": {
+              "type": "number",
+              "minimum": 0
+            },
+            "forecast_price_per_kg_minor": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "price_source": {
+              "type": "string"
+            },
+            "cultivation_cost_lkr_ha": {
+              "type": "number",
+              "minimum": 0
+            },
+            "central": {
+              "type": "object",
+              "properties": {
+                "harvested_kg": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "sellable_kg": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "revenue_minor": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "cultivation_cost_minor": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "marketing_cost_minor": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "net_return_minor": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "net_return_per_ha_minor": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "harvested_kg",
+                "sellable_kg",
+                "revenue_minor",
+                "cultivation_cost_minor",
+                "marketing_cost_minor",
+                "net_return_minor",
+                "net_return_per_ha_minor"
+              ],
+              "additionalProperties": false
+            },
+            "stressed": {
+              "type": "object",
+              "properties": {
+                "harvested_kg": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "sellable_kg": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "revenue_minor": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "cultivation_cost_minor": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "marketing_cost_minor": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "net_return_minor": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "net_return_per_ha_minor": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "harvested_kg",
+                "sellable_kg",
+                "revenue_minor",
+                "cultivation_cost_minor",
+                "marketing_cost_minor",
+                "net_return_minor",
+                "net_return_per_ha_minor"
+              ],
+              "additionalProperties": false
+            },
+            "area_ha": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "crop_id",
+            "crop_label",
+            "planting_date",
+            "harvest_date",
+            "harvest_month",
+            "predicted_yield_kg_ha",
+            "forecast_price_per_kg_minor",
+            "price_source",
+            "cultivation_cost_lkr_ha",
+            "central",
+            "stressed",
+            "area_ha"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "exclusions": {
+        "maxItems": 3,
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "crop_id": {
+              "type": "string",
+              "enum": [
+                "tomato",
+                "potato",
+                "carrot"
+              ]
+            },
+            "crop_label": {
+              "type": "string"
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "crop_id",
+            "crop_label",
+            "reasons"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "planting_month",
+      "region_profile",
+      "market_id",
+      "soil_type",
+      "soil_ph",
+      "irrigation_available",
+      "area_ha",
+      "data_source",
+      "data_cutoff",
+      "inference_device",
+      "all_negative_returns",
+      "stress_assumptions",
+      "recommendations",
+      "exclusions"
+    ],
+    "additionalProperties": false
   }
 }

@@ -1,105 +1,88 @@
-# CropConvoy GPU prediction demo
+# CropConvoy prediction service
 
-Two XGBoost regressors support six-produce price forecasts and three-crop planting comparisons.
-All observations and projections are synthetic. These are demo estimates, not validated market or agronomic advice.
+Two saved XGBoost regressors serve six-produce price forecasts and three-crop planting comparisons. Data and projections are synthetic demo estimates. CPU inference is the default; CUDA remains an explicit option. Existing GPU-trained models do not need retraining for CPU serving.
 
-## Local setup
+The application uses:
 
-Use native Windows Python 3.11 and the RTX 4070 with a functioning NVIDIA driver.
-From the repository root (only create the environment if it does not already exist):
+```text
+Vercel browser → Node API /api/ml/* → separate Python ML service
+```
 
-    py -3.11 -m venv ml/.venv
-    & '.\ml\.venv\Scripts\python.exe' -m pip install -r ml/requirements.lock
+Only the Node API knows the ML service URL and shared key. Insights stays public and rate limited through the API; marketplace authentication and booking rules are unchanged. Responses under /api/ml retain the ML raw JSON shape.
 
-Never commit .venv, logs, caches or local environment files. Models and synthetic CSVs are included.
+## Run locally
 
-## Train with visible progress
+From the repository root, with Python 3.12:
 
-Open PowerShell in the repository root and run:
+```sh
+python3.12 -m venv ml/.venv
+ml/.venv/bin/python -m pip install -r ml/requirements-cpu.lock
+ML_INFERENCE_DEVICE=cpu ml/.venv/bin/python -m uvicorn ml.server:app --host 127.0.0.1 --port 8001 --workers 1
+```
 
-    & '.\ml\.venv\Scripts\python.exe' -u -X utf8 -m ml.run_all --reuse-data --verbose-eval 10
+On macOS, install libomp if XGBoost reports that the OpenMP library is missing. On Windows use ml/.venv/Scripts/python.exe for the same Python commands and set environment values with PowerShell. Create a virtual environment only if it does not exist.
 
-Keep that window open after the run. It prints the GPU gate, dataset counts, temporal splits,
-boosting progress every ten iterations, early stopping, refitting, evaluation metrics and artifact paths.
-A timestamped copy is saved in ignored ml/logs/training-*.log.
-Both models run sequentially on CUDA; CPU fallback stops training.
---reuse-data reads the existing CSVs without changing them. Omitting it explicitly regenerates the
-synthetic datasets. Training writes a staged artifact set, then publishes models, preprocessors,
-evaluation, diagnostics and a hash manifest only after successful training.
-The model card's tables are generated from that evaluation report.
+The backend's ignored api/.env contains:
 
-The implementation run on 24 October 2026 reused 2,322 monthly price observations (2016-01–2026-09)
-and 10,000 cultivation cycles, taking 2.34 seconds on the RTX 4070. Runtime depends on hardware.
-Yield holdout records end in April 2026; they do not extend through the price cutoff.
+```dotenv
+ML_API_BASE_URL=http://localhost:8001
+ML_API_KEY=
+ML_REQUEST_TIMEOUT_MS=60000
+```
 
-## Serve locally
+An empty key is allowed only for local development. If you set ML_API_KEY, set the same value in the ML process environment. The ML process reads environment variables, not api/.env. Never put the key in web/, VITE_ variables, URLs or source control.
 
-    & '.\ml\.venv\Scripts\python.exe' -u -X utf8 -m uvicorn ml.server:app --host 127.0.0.1 --port 8001
+Run the Node API and frontend in separate terminals:
 
-Startup validates continuous price history, all eighteen series, artifact/data hashes and feature order,
-loads both models, explicitly selects CUDA and performs representative inference with each model.
-Health returns 503 if GPU verification, data or artifact loading fails. Inference runs on one persistent
-CUDA worker to avoid transient Windows HTTP-thread contexts. GPU model cleanup runs on that worker.
-No automatic CPU fallback is supported. Do not set ML_INFERENCE_DEVICE=cpu.
+```sh
+npm --prefix api run dev
+npm --prefix web run dev
+```
 
-The browser uses VITE_ML_API_BASE_URL=http://localhost:8001. Open the website's Insights link.
-Restart the ML server after replacing trained artifacts. Keep the service running during the demo.
-If startup fails, inspect its console, fix the model/data/GPU issue, then restart and choose Check again.
+For local frontend testing, web/.env should use VITE_API_BASE_URL=http://localhost:3001. Open /#/insights. VITE_ML_API_BASE_URL is no longer used. The browser calls the Node API, which calls Python; Python needs no browser CORS configuration.
+
+## Hosting on Render
+
+Follow [the separate-service deployment guide](../docs/ML-DEPLOYMENT.md). The ML service runs from the repository root, not ml/, because ml.server uses package imports. Render's public HTTPS URL is configured on the backend as ML_API_BASE_URL. Both Render services receive the same server-only ML_API_KEY. On Render, missing key configuration prevents predictions from becoming ready. Health remains publicly accessible for platform readiness checks.
+
+The CPU dependency profile uses the smaller xgboost-cpu Linux package; on other platforms it uses the pinned xgboost package. Both expose the same Python API. Inference is serialized and uses one XGBoost thread to limit CPU contention. Free-tier memory and cold-start behavior still need monitoring on the deployed instance.
+
+## Runtime behavior
+
+ML_INFERENCE_DEVICE defaults to cpu. Set cuda or cuda:N only on an NVIDIA-capable host. Startup loads both saved artifacts, validates their hashes/features and both datasets, runs representative predictions, and verifies the effective device. CUDA configuration cannot silently become CPU serving. Missing/corrupt artifacts, changed data or invalid outputs return 503. Historical prices/catalog remain readable when their data is valid, even if inference is unavailable.
+
+The Node proxy validates requests and upstream schemas, bounds response size and time, cancels disconnected requests, forwards only five fixed endpoints, and never forwards browser tokens or headers. Only its own X-ML-API-Key header reaches Python. It preserves field validation responses and sanitizes dependency errors. Forecasts never become authoritative marketplace prices or update quote snapshots.
 
 ## Endpoints
 
-| Method | Path | Behavior |
+| Method | Python path | Node path |
 |---|---|---|
-| GET | /health | Verified CUDA device, versions, server date, cutoff; otherwise 503 |
-| GET | /v1/catalog | Produce, crops, markets, assumptions, Colombo date, supported forecast/planting months |
-| GET | /v1/prices/history?produceId=tomato&marketId=dambulla | Full synthetic monthly history; available without models if data is valid |
-| POST | /v1/prices/forecast | produceId, marketId, targetMonth; direct 1–6 month forecast |
-| POST | /v1/planting/recommendations | Planting conditions and optional costs; ranked stressed returns and exclusions |
+| GET | /health | /api/ml/health |
+| GET | /v1/catalog | /api/ml/v1/catalog |
+| GET | /v1/prices/history?produceId=tomato&marketId=dambulla | /api/ml/v1/prices/history?produceId=tomato&marketId=dambulla |
+| POST | /v1/prices/forecast | /api/ml/v1/prices/forecast |
+| POST | /v1/planting/recommendations | /api/ml/v1/planting/recommendations |
 
-ML responses remain raw JSON, separate from the core marketplace API envelope.
+Direct analytical Python routes require X-ML-API-Key when configured. Health is public. The Node proxy's public routes are intended for synthetic Insights and keep the existing API IP limit. They use raw ML JSON; dependency errors from Node use its normal error object.
 
-Forecast example:
-
-    {"produceId":"carrot","marketId":"dambulla","targetMonth":"2026-10"}
-
-Planting example (replace the month with a current catalog value):
-
-    {"plantingMonth":"2026-10","regionProfile":"mild_midcountry","marketId":"dambulla",
-     "areaHa":1,"soilType":"loam","soilPh":6,"irrigationAvailable":true,
-     "cultivationCostOverride":{"carrot":1600000}}
-
-Validation: exact YYYY-MM, supported catalog values, area 0.1–100 hectares, pH 0–14,
-costs LKR 0–1,000,000,000/ha; unknown fields and crop keys are rejected.
-Invalid input returns 422 with field details. Prediction failures return 503.
-Planting allows the current and next two Colombo months; this month uses today, future months day one.
-Harvest-month prices must be inside the forecast window; unsupported crops are excluded, never given
-a substituted price. No eligible crops is a successful comparison with explanations.
-
-Amounts named *_minor are integer LKR minor units (100 = LKR 1). Financial net returns subtract the
-rounded revenue/cost line items exactly. Yields in this analytical extension may be fractional kg;
-the core marketplace continues to require whole kg.
+Forecast input: {produceId,marketId,targetMonth}. Planting input: {plantingMonth,regionProfile,marketId,areaHa?,soilType?,soilPh?,irrigationAvailable?,cultivationCostOverride?}. Dates use YYYY-MM; choose available months from the catalog. Unknown fields/crops, non-finite numbers, unsupported horizons, area outside 0.1–100 ha, pH outside 0–14 and costs outside LKR 0–1,000,000,000/ha are rejected. Financial *_minor amounts are integer LKR minor units; analytical yields may be fractional kg. Marketplace quantities remain whole kg.
 
 ## Verification
 
-    & '.\ml\.venv\Scripts\python.exe' -u -X utf8 -m pytest ml/test_ml.py -q
-    npm.cmd test --prefix web
-    npm.cmd run build --prefix web
-
-The ML suite tests actual HTTP requests and loaded CUDA artifacts, all 108 forecast combinations,
-feature parity and no future leakage, validation, history integrity, GPU unavailability,
-missing artifacts, calendar rollover, financial arithmetic and exclusions.
-Model and dataset hashes are recorded in artifacts/model_manifest.json.
-Scores describe held-out synthetic data only. See MODEL_CARD.md and web/TEST-CHECKLIST.md.
-
-## Portable dataset verification and checks without CUDA
-
-New manifests use `dataset_hash_format=sha256-lf-v1`: CSV hashes normalize CRLF to LF, matching the repository's checkout policy. Model/preprocessor hashes remain byte-exact. Training and serving use the same dataset hash function and serving checks both CSVs. The checked-in manifest was updated after verifying the old hashes match exactly the same CSV content with Windows line endings; models, observations and evaluation scores were not regenerated. Older manifests without a format keep their original byte-exact validation.
-
-The marketplace and Insights frontend can build on machines without CUDA. With the pinned dependencies installed, run the hardware-independent subset from the repository root:
+From the repository root:
 
 ```sh
-python -m pytest ml/test_service_unavailable.py ml/test_ml.py -q \
-  -k 'service_unavailable or dataset_reproducibility or shared_features_and_no_future_leak or history_validation or exact_break_even_arithmetic'
+ML_INFERENCE_DEVICE=cpu ml/.venv/bin/python -m pytest ml/test_ml.py ml/test_service_unavailable.py -q
+npm --prefix api test
+npm --prefix web test
+npm --prefix api run build
+npm --prefix web run build
 ```
 
-These checks cover dataset/artifact integrity, Windows/Unix line endings, changed-data rejection, reproducible synthetic data, feature parity and absence of future leakage, exact financial arithmetic, calendar rollover, validation and unavailable-service HTTP behavior. The service refuses CPU configuration; historical prices and catalog remain readable while prediction endpoints return 503. These checks do not validate GPU inference. Run the complete suite above on an NVIDIA CUDA machine to verify forecasts and planting results.
+ML tests load the actual saved models on the configured device and cover all 108 produce/market/horizon combinations, temporal feature parity, input validation, financial arithmetic, calendar changes, artifact/data integrity and unavailable/authentication behavior. No training or CSV regeneration occurs during tests. CUDA serving must be tested separately on CUDA hardware.
+
+## Training and provenance
+
+Training remains an explicit GPU workflow; serving does not train. On the original NVIDIA Windows environment, run python -u -X utf8 -m ml.run_all --reuse-data --verbose-eval 10. Install ml/requirements.lock for CUDA training. Training stages artifacts and publishes them after success; restarting the ML service loads the new set. Model-card scores describe held-out synthetic data, not observed market accuracy.
+
+Dataset hashes use the versioned sha256-lf-v1 format, normalizing only Windows CRLF to LF. Training and serving share that function; model/preprocessor hashes remain byte-exact. The original Windows hashes were verified against identical observations before normalization. Models and training observations were not changed by the CPU integration. See MODEL_CARD.md and artifacts/model_manifest.json.

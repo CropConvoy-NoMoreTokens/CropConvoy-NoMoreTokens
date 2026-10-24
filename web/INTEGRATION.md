@@ -81,7 +81,7 @@ The browser regression tests use a copy of P4's full synthetic response envelope
 The proposal fare panel reads the versioned carrying/detour components from the stored quote, keeps the stored source minimum/pins, and uses the earlier of quote/plan expiry to block decisions. Demo results remain explicitly simulated with unknown route components left null; old trip rates are not converted to kg-km rates.
 ## ML prediction integration (separate service)
 
-VITE_ML_API_BASE_URL selects FastAPI, default http://localhost:8001.
+Insights uses VITE_API_BASE_URL plus /api/ml; the Node backend selects FastAPI with server-only ML_API_BASE_URL (localhost:8001 locally) and ML_API_KEY. VITE_ML_API_BASE_URL is ignored. See docs/ML-DEPLOYMENT.md.
 It is independent of VITE_DATA_MODE: Insights always calls the actual local ML service,
 even when the marketplace uses demo data. It never fabricates success when the service fails.
 
@@ -92,13 +92,13 @@ these endpoints do not use the core marketplace envelope. See ml/README.md for e
 Catalog adds server_date (Asia/Colombo date), data_cutoff, forecast_months and planting_months.
 The frontend derives dates, labels, climate assumptions and default costs from the catalog.
 Forecast months cover supported current/future dates; an exhausted window disables submission.
-History remains accessible if data is valid while models/GPU are unavailable.
+History remains accessible if data is valid while models/inference are unavailable.
 
 The client maps Pydantic 422 details/custom field errors into ApiError.fields. Failures use 503;
 network errors/timeouts preserve input; cancellation is combined with a 15-second timeout.
 The UI loads defaults once, then uses explicit update buttons. Requests disable duplicate submissions;
 canceled/superseded responses are ignored. Edited inputs label prior results as outdated.
-Health retries preserve form state. GPU readiness reflects configured/inference-verified model devices.
+Health retries preserve form state. Readiness reflects verified CPU or explicitly configured CUDA inference.
 
 Currencies remain integer minor units. Analytical yields/hectares may be fractional; core marketplace
 whole-kg contracts and its three-crop enum are unchanged. Fruits belong to the prediction catalog only.
@@ -106,4 +106,4 @@ Training reads synthetic CSVs, not transactions. Real-data ingestion, backend CR
 deployment remain separate work.
 
 Start the ML service and use Insights. For retraining, open PowerShell and run the unbuffered command
-in ml/README.md; leave it open to view progress. Restart the service afterward and check GPU readiness.
+in ml/README.md; leave it open to view progress. Restart the service afterward and check the configured inference device readiness.

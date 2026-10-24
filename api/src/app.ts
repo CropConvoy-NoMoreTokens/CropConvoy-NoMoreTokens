@@ -13,8 +13,10 @@ import { createLogisticsService, type LogisticsService } from './modules/logisti
 import { registerRoutes as logisticsRoutes } from './modules/logistics/routes.js';
 import { createWorkflowService, type WorkflowOptions } from './modules/workflow/service.js';
 import { registerRoutes as workflowRoutes } from './modules/workflow/routes.js';
+import { createPredictionRouter, type PredictionProxyOptions } from './modules/predictions/routes.js';
 
 export interface AppOptions {
+  predictions?: PredictionProxyOptions;
   logistics?: LogisticsService;
   logisticsForGeneration?: WorkflowOptions['logisticsForGeneration'];
 }
@@ -39,6 +41,8 @@ export function createApp(deps: Dependencies, _origins: string[], options: AppOp
   // P2 must configure trust proxy for the verified hosting topology before public deployment.
   app.use('/api', rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false,
     handler(_req, res) { res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many requests; try again in a minute' } }); } }));
+  // Insights stays public; these fixed proxy routes are rate limited and carry no marketplace credentials.
+  app.use('/api/ml', createPredictionRouter(options.predictions));
   app.use('/api/auth', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
   app.post('/api/auth/login', rateLimit({ windowMs: 15 * 60_000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false,
     handler(_req, res) { res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many login attempts; try again later' } }); } }),

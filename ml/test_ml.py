@@ -25,19 +25,20 @@ def client():
     client = TestClient(server.app)
     yield client
     client.close()
-    server._gpu_worker.submit(server.release_models).result()
-    server._gpu_worker.shutdown(wait=True)
+    server._inference_worker.submit(server.release_models).result()
+    server._inference_worker.shutdown(wait=True)
 
 @pytest.fixture(autouse=True)
 def frozen(monkeypatch):
     monkeypatch.setattr(server,"colombo_today",lambda:FROZEN)
     monkeypatch.setattr(features,"colombo_today",lambda:FROZEN)
 
-def test_runtime_gpu_and_artifact_provenance(client):
+def test_runtime_device_and_artifact_provenance(client):
     res = client.get("/health").json()
-    assert res["inference_device"].startswith("cuda")
+    expected = "cuda:0" if server.INFERENCE_DEVICE == "cuda" else server.INFERENCE_DEVICE
+    assert res["inference_device"] == expected
     for name in ("price","yield"):
-        assert server._device(server._state[name+"_model"]).startswith("cuda")
+        assert server._device(server._state[name+"_model"]) == expected
     manifest = json.loads((BASE/"artifacts/model_manifest.json").read_text())
     for name,digest in manifest["sha256"].items():
         assert hashlib.sha256((BASE/"artifacts"/name).read_bytes()).hexdigest()==digest
@@ -131,13 +132,13 @@ def test_out_of_horizon_excluded_without_fallback(client,monkeypatch):
     assert res.json()["recommendations"]==[]
     assert all("forecast window" in r["reasons"][-1] for r in res.json()["exclusions"])
 
-def test_missing_gpu_and_cpu_fallback_fail_closed(client,monkeypatch):
+def test_missing_models_and_unexpected_device_fail_closed(client,monkeypatch):
     monkeypatch.setitem(server._state,"ready",False)
     assert client.get("/health").status_code==503
     assert client.post("/v1/prices/forecast",json={"produceId":"tomato","marketId":"dambulla","targetMonth":"2026-10"}).status_code==503
     assert client.get("/v1/prices/history?produceId=tomato&marketId=dambulla").status_code==200
     monkeypatch.setitem(server._state,"ready",True)
-    monkeypatch.setattr(server,"_device",lambda model:"cpu")
+    monkeypatch.setattr(server,"_device",lambda model:"cuda:0" if server.INFERENCE_DEVICE == "cpu" else "cpu")
     assert client.get("/health").status_code==503
 
 @pytest.mark.parametrize("output",[float("nan"),-2.0])

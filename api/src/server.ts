@@ -5,7 +5,9 @@ const deps = createDependencies({ databaseUrl: config.DATABASE_URL, stub: config
   maxPlanMs: config.MAX_PLAN_MS, llmApiKey: config.LLM_API_KEY,
   llmModel: config.LLM_MODEL, llmBaseUrl: config.LLM_BASE_URL,
   routingBaseUrl: config.ROUTING_BASE_URL, routingProfile: config.ROUTING_PROFILE });
-const app = createApp(deps, config.CORS_ORIGINS.split(',').map(value => value.trim()).filter(Boolean));
+const app = createApp(deps, config.CORS_ORIGINS.split(',').map(value => value.trim()).filter(Boolean), {
+  predictions: { baseUrl: config.ML_API_BASE_URL, apiKey: config.ML_API_KEY, timeoutMs: config.ML_REQUEST_TIMEOUT_MS },
+});
 const server = app.listen(config.PORT, '0.0.0.0', () => {
   console.log(JSON.stringify({ event: 'listening', port: config.PORT, mode: deps.mode, persistence: deps.persistence }));
 });

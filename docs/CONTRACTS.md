@@ -15,7 +15,7 @@ P4 is the contract owner. The starter defines the initial agreement; the team sh
 
 ## Envelopes
 
-Every successful endpoint, including health, returns:
+Every successful marketplace endpoint, including health, returns:
 ```json
 {"data": {}, "meta": {"mode": "stub", "persistence": "memory", "requestId": "server-generated UUID"}}
 ```
@@ -43,7 +43,7 @@ The browser restores API identity through /api/auth/me, attaches the session tok
 
 ## Endpoint agreement
 
-The Insights analytical extension uses a separate Python ML service, not these Express routes. It returns raw JSON rather than the marketplace envelope, uses synthetic observations, supports fractional analytical yields, and requires verified CUDA for predictions. Its browser adapter uses VITE_ML_API_BASE_URL and does not forward marketplace bearer tokens. Predictions never modify quote snapshots, orders, listing minima or booking decisions. See [ML endpoint contracts](../ml/README.md). Marketplace units and hard-rule validation remain unchanged.
+The Insights analytical extension is public at five fixed `/api/ml/*` proxy routes. It uses a separate Python service configured through server-only ML_API_BASE_URL/ML_API_KEY, supports explicit CPU (default) or CUDA inference, returns raw ML JSON on success and ML 422 validation errors, and uses the normal Node error object for proxy/configuration failures. These rate-limited synthetic tools remain accessible before marketplace login. They never receive the browser's bearer token, arbitrary target URLs or arbitrary forwarded headers. Other API routes retain authentication. The browser uses VITE_API_BASE_URL, not VITE_ML_API_BASE_URL. Predictions never modify quote snapshots, orders, listing minima or booking decisions; analytical yields may be fractional while marketplace quantities remain whole kg. See [ML service contracts](../ml/README.md) and [deployment](ML-DEPLOYMENT.md).
 
 POST body schemas are in contracts/schemas.json. The return type below is inside the `data` envelope.
 
@@ -51,6 +51,11 @@ POST body schemas are in contracts/schemas.json. The return type below is inside
 |---|---|---|---|
 | GET /health | none | `{status:'ok', version, implementation}` | P2 |
 | GET /ready | none | DB-backed readiness; 503 in starter | P2 |
+| GET /api/ml/health | none | Raw model readiness; CPU/CUDA device | API proxy |
+| GET /api/ml/v1/catalog | none | Raw synthetic catalog and supported months | API proxy |
+| GET /api/ml/v1/prices/history | produceId, marketId query | Raw history | API proxy |
+| POST /api/ml/v1/prices/forecast | MlForecastInput | Raw validated forecast | API proxy |
+| POST /api/ml/v1/planting/recommendations | MlPlantingInput | Raw validated comparison | API proxy |
 | POST /api/auth/login | `{username,password}` | `{token,tokenType:'Bearer',expiresAt,user:{id,username,role}}` | P2 |
 | GET /api/auth/me | bearer header | `{id,username,role}` | P2 |
 | POST /api/auth/logout | bearer header | `{signedOut:true}` | P2 |
