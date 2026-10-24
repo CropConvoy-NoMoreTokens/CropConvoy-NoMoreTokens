@@ -73,7 +73,10 @@ export function createLogisticsService(deps:Dependencies, options:LogisticsOptio
       if(Date.parse(v.departureAt)<=now.getTime()) throw new ApiError(422,'DEPARTURE_IN_PAST','Choose a future departure');
       const signal=AbortSignal.timeout(deps.maxPlanMs);
       const r=await route([v.start,v.end],signal);
-      validateStops([v.start,v.end],r.snappedPoints,policy.snapToleranceM);
+      validateStops([v.start, v.end], r.snappedPoints, policy.snapToleranceM, [
+        { label: 'Start location', fieldPrefix: 'start' },
+        { label: 'Destination', fieldPrefix: 'end' },
+      ]);
       assertSimpleRoute(r.geometry);
       const trip=weightDistanceTripSchema.parse({...v,id:randomUUID(),status:'open',createdAt:now.toISOString(),
         routeGeoJSON:r.geometry,routeDistanceM:r.distanceM,routeDurationS:r.durationS,

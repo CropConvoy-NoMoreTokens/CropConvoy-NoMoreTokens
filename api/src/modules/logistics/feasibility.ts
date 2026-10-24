@@ -6,9 +6,40 @@ import { validateRoute } from './routing.js';
 
 export type TimingPolicy = { snapToleranceM:number; loadingS:number; unloadingS:number };
 export const defaultTiming: TimingPolicy = {snapToleranceM:100, loadingS:600, unloadingS:300};
-export function validateStops(points:Point[], snapped:Point[], toleranceM:number) {
-  if(points.length!==snapped.length) throw new FeasibilityError(['INVALID_SNAPPED_POINTS']);
-  if(points.some((p,i)=>meters(p,snapped[i])>toleranceM)) throw new FeasibilityError(['SNAP_TOO_FAR']);
+export type StopInfo = { label: string; fieldPrefix?: string };
+
+export function validateStops(
+  points: Point[],
+  snapped: Point[],
+  toleranceM: number,
+  stops?: StopInfo[]
+) {
+  if (points.length !== snapped.length) throw new FeasibilityError(['INVALID_SNAPPED_POINTS']);
+  const violations: Array<{ index: number; dist: number }> = [];
+
+  for (let i = 0; i < points.length; i++) {
+    const dist = Math.round(meters(points[i], snapped[i]));
+    if (dist > toleranceM) {
+      violations.push({ index: i, dist });
+    }
+  }
+
+  if (violations.length > 0) {
+    const fields: Array<{ path: string; message: string }> = [];
+    const details = violations.map(v => {
+      const stop = stops?.[v.index];
+      const stopName = stop?.label ? `${stop.label} pin` : `Location pin #${v.index + 1}`;
+      const msg = `${stopName} is ${v.dist}m away from the nearest road (maximum allowed is ${toleranceM}m). Move the pin closer to a drivable road on the map or select a nearby town.`;
+      if (stop?.fieldPrefix) {
+        fields.push({ path: `${stop.fieldPrefix}.lat`, message: msg });
+      }
+      return `${stopName} is ${v.dist}m from the nearest road (limit: ${toleranceM}m)`;
+    });
+
+    const summaryMessage = `Location pin is too far from an accessible road: ${details.join('; ')}. Pins must be placed within ${toleranceM}m of a drivable road.`;
+
+    throw new FeasibilityError(['SNAP_TOO_FAR'], summaryMessage, fields);
+  }
 }
 export function checkShipment(listing:Listing, order:Order, trip:WeightDistanceTrip, now:Date) {
   const codes:string[]=[];
@@ -25,9 +56,14 @@ export function checkRoad(
   listing:Listing, order:Order, trip:WeightDistanceTrip,
   result:Awaited<ReturnType<RoutingClient['route']>>, policy:TimingPolicy=defaultTiming,
 ) {
-  const r=validateRoute(result,4);
-  const points=[trip.start,listing.pickup,order.delivery,trip.end];
-  validateStops(points,r.snappedPoints,policy.snapToleranceM);
+  const r = validateRoute(result, 4);
+  const points = [trip.start, listing.pickup, order.delivery, trip.end];
+  validateStops(points, r.snappedPoints, policy.snapToleranceM, [
+    { label: 'Trip start', fieldPrefix: 'start' },
+    { label: 'Harvest pickup', fieldPrefix: 'pickup' },
+    { label: 'Order delivery', fieldPrefix: 'delivery' },
+    { label: 'Trip destination', fieldPrefix: 'end' },
+  ]);
   const extraDistanceM=Math.max(0,r.distanceM-trip.routeDistanceM);
   const extraDrivingTimeS=Math.max(0,r.durationS-trip.routeDurationS);
   const extraTimeS=extraDrivingTimeS+policy.loadingS+policy.unloadingS;

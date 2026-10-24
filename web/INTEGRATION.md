@@ -61,13 +61,15 @@ Frontend Trip/QuoteSnapshot types permit null geometry/measurements only to repr
 ## Backend-ready switch checklist
 
 1. P3 routing/trip/quote persistence is integrated; configure and verify the approved road provider; P2 market/Gemini and P4 workflow/persistence are integrated. Confirm the existing endpoint/envelope/field agreement, and provide success, empty, stale and dependency examples.
-2. Set VITE_DATA_MODE=api and VITE_API_BASE_URL to the actual API address. Allow this frontend origin in API CORS.
+2. Set VITE_DATA_MODE=api and VITE_API_BASE_URL to the actual API address. Check the API's CORS response for that origin.
 3. Verify extraction → review → confirmed publication → generation → stored snapshot → decision. Refresh both listing and proposal URLs.
 4. Verify saved order/trip data survives API restart, route geometry is real, and snapshot money/date units match.
 5. Preserve pending buyer/transporter confirmations after acceptance. API-mode authorization comes from the backend session; the browser-supplied actor ID is not authority.
 6. Confirm map provider terms/attribution, image loading, HTTPS, error behavior and production build. Use TEST-CHECKLIST.md for the UI regression pass.
 
 Site search is local to static pages/help and records loaded into this app session. There is no unsupported server search call. The floating contact action opens local help because no team email/phone has been provided. There is no fake support form, newsletter subscription or real account registration.
+
+The location picker filters its checked-in Sri Lanka place suggestions locally. The farmer review screen also offers an explicit backend place lookup for names outside that list. Typing in the picker does not send autocomplete requests to public Nominatim.
 
 
 ## P4 integration after the UI rebase

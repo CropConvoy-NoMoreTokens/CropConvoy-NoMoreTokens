@@ -103,6 +103,7 @@ export async function authorizeRequest(deps: Dependencies, user: AuthUser,
       throw new ApiError(403, 'OWNER_MISMATCH', 'Listing owner must match the signed-in farmer');
     return;
   }
+  if (method === 'GET' && path === '/listings') { requireRole(user, 'farmer'); return; }
   const listing = path.match(/^\/listings\/([^/]+)$/);
   if (method === 'GET' && listing) {
     requireRole(user, 'farmer'); await requireListingOwner(deps, user, listing[1]); return;

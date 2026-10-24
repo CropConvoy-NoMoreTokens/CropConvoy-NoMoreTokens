@@ -27,7 +27,9 @@ Errors:
 {"error": {"code": "VALIDATION_ERROR", "message": "Check the submitted fields", "fields": [{"path": "quantityKg", "message": "..."}]}}
 ```
 
-Statuses: 400 malformed JSON; 401 missing/invalid session or credentials; 403 role/owner mismatch or unapproved browser origin; 404 missing/inaccessible record; 409 stale/conflicting decision; 413 oversized body; 422 invalid input; 429 rate limit; 503 missing integration/dependency. All responses include X-Request-Id. A valid search with no suitable match is HTTP 200.
+Statuses: 400 malformed JSON; 401 missing/invalid session or credentials; 403 role/owner mismatch; 404 missing/inaccessible record; 409 stale/conflicting decision; 413 oversized body; 422 invalid input; 429 rate limit; 503 missing integration/dependency. All responses include X-Request-Id. A valid search with no suitable match is HTTP 200.
+
+CORS permits every browser origin (`Access-Control-Allow-Origin: *`), exposes X-Request-Id and handles preflights for JSON and Authorization headers. Cookie credentials are not enabled; API access uses bearer tokens. CORS_ORIGINS is retained as a legacy configuration input but no longer restricts origins. Authentication and role/owner checks still apply.
 
 ## Demo authentication
 
@@ -153,3 +155,8 @@ Workflow consumes getRunDiagnostics using the same search AbortSignal across alt
 Search routing/model work stops at 90% of the total deadline. The remaining deadline permits P3 to return already validated/saved quotes and P4 to load authoritative snapshots and persist a partial plan. No further routing/model work starts after the search deadline. Cheap physical prefilter rejections do not count toward the six routed-combination cap. Every actual route attempt remains budgeted.
 
 Current quote schemas require pricingVersion=weight-distance-v2, ratePerKgKmMinor, routeCarryDistanceM, shipmentChargeMinor, detourChargeMinor and expiresAt. Obsolete persisted plan tariffs return 409 PRICING_VERSION_CHANGED; they are never reinterpreted. Migration 002 adds explicit trip tariff/version fields and logistics_quotes while excluding unrepublished legacy trips. The main exporter and UI test fixture copy remain synchronized.
+
+
+### Saved farmer harvests
+
+`GET /api/listings?demoFarmerId=<UUID>` returns the signed-in farmer's listings, newest first (createdAt then ID descending), in the normal data/meta envelope. Missing or invalid UUIDs return 422; a different farmer ID returns 403. The farmer workspace loads this on entry and offers Open harvest and refresh. Existing listings require no migration. The bearer session establishes the owner; the query parameter is checked against it.

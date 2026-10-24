@@ -54,6 +54,12 @@ test('real modules integrate over HTTP: persist sources, route, quote, review, a
     server=createApp(deps,['http://localhost:5173']).listen(0,'127.0.0.1');
     await new Promise<void>(resolve=>server.once('listening',resolve));
     base='http://127.0.0.1:'+(server.address() as AddressInfo).port;
+    const harvestsResponse=await fetch(base+'/api/listings?demoFarmerId='+demoUsers[0].id,{headers:demoAuthHeaders(tokens,'/api/listings')});
+    assert.equal(harvestsResponse.status,200);
+    assert.deepEqual((await harvestsResponse.json()).data.map((row:{id:string})=>row.id),[listing.id]);
+    const otherHarvests=await fetch(base+'/api/listings?demoFarmerId='+randomUUID(),{headers:demoAuthHeaders(tokens,'/api/listings')});
+    assert.equal(otherHarvests.status,403);
+    assert.equal((await fetch(base+'/api/listings?demoFarmerId=invalid',{headers:demoAuthHeaders(tokens,'/api/listings')})).status,422);
     const persistedResponse=await fetch(base+'/api/plans/'+plan.id,{headers:demoAuthHeaders(tokens,'/api/plans/'+plan.id)});
     assert.equal(persistedResponse.status,200);
     const persisted=await persistedResponse.json();

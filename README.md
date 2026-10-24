@@ -82,7 +82,7 @@ From web/: `npm test`, `npm run build`.
 
 For database setup, read [api/db/README.md](api/db/README.md) and run `npm run db:migrate` from api/ only after configuring DATABASE_URL. Migration execution is separate from server startup.
 
-For Render, set Root Directory to `api`, Build Command to `npm ci --include=dev && npm run build`, and Start Command to `npm start`. An install-only build leaves `dist/server.js` missing. See [deployment settings and troubleshooting](docs/DEPLOYMENT.md) and [render.yaml](render.yaml); existing Dashboard services must apply these settings explicitly.
+For Render, set Root Directory to `api`, Build Command to `npm ci --include=dev && npm run build`, and Start Command to `npm start`. API installation also compiles through postinstall, and the build checks the generated `dist/server.js` entry point. See [deployment settings and troubleshooting](docs/DEPLOYMENT.md) and [render.yaml](render.yaml); existing Dashboard services must apply these settings explicitly and rebuild after changes.
 
 ## Scope guardrails
 

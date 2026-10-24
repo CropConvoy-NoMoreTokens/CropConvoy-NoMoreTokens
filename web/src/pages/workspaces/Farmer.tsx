@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowRight, Sparkle, Plant, CheckCircle, Plus, PencilSimple, ArrowClockwise, ImageSquare } from '@phosphor-icons/react';
 import type { Crop, Listing, ListingInput, Plan, GenerationResult, Point, PlaceCandidate, Meta } from '../../api/types';
@@ -21,6 +21,9 @@ export default function Farmer() {
   const [pinConfirmed, setPinConfirmed] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [listing, setListing] = useState<Listing | null>(null);
+  const [harvests, setHarvests] = useState<Listing[]>([]);
+  const [loadingHarvests, setLoadingHarvests] = useState(true);
+  const [harvestsError, setHarvestsError] = useState<unknown>();
   const [plan, setPlan] = useState<Plan | null>(null);
   const [outcome, setOutcome] = useState<GenerationResult | null>(null);
   const [meta, setMeta] = useState<Meta>();
@@ -41,14 +44,27 @@ export default function Farmer() {
   const [placeBusy, setPlaceBusy] = useState(false);
   const listingId = params.get('listing');
   const planId = params.get('plan');
+  const loadHarvests = useCallback(async () => {
+    setLoadingHarvests(true); setHarvestsError(undefined);
+    try { const result = await service.listListings(identity?.id ?? DEMO_IDS.farmer); setHarvests(result.data); }
+    catch (e) { setHarvestsError(e); }
+    finally { setLoadingHarvests(false); }
+  }, [service, identity?.id]);
+  useEffect(() => { void loadHarvests(); }, [loadHarvests]);
+  function openHarvest(row: Listing) {
+    setListing(row); setPlan(null); setOutcome(null); setError(undefined); setErrors({});
+    setParams({ listing: row.id });
+  }
   const field = (key: keyof typeof form) => ({ value: form[key], onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(old => ({ ...old, [key]: e.target.value })) });
   useEffect(() => {
     if (resetting.current) { if (!listingId) resetting.current = false; return; }
-    if (!listingId || listing?.id === listingId) return;
+    if (!listingId) { setBusy(current => current === 'load' ? '' : current); return; }
     let active = true; setBusy('load');
     service.getListing(listingId).then(result => { if (active) { setListing(result.data); setMeta(result.meta); setError(undefined); remember({ title: `Harvest ${shortId(result.data.id)}`, description: `${result.data.quantityKg} kg ${result.data.crop}`, href: `/app/farmer?listing=${result.data.id}` }); } }).catch(e => { if (active) setError(e); }).finally(() => { if (active) setBusy(''); });
     return () => { active = false; };
-  }, [listingId, service, listing?.id, remember]);
+    // Loading is keyed by the URL, not by the response state it updates.
+    // Depending on listing.id cancels this effect before finally can clear busy.
+  }, [listingId, service, remember]);
   useEffect(() => {
     if (resetting.current) return;
     if (!planId) { setPlan(null); setPlanMeta(undefined); return; }
@@ -124,7 +140,19 @@ export default function Farmer() {
     setErrors(problems);
     if (result.success && pinConfirmed) setPublishInput(result.data);
   }
-  async function publish() { if (!publishInput) return; await task('publish', async () => { const result = await service.createListing(publishInput); setListing(result.data); setMeta(result.meta); setPublishInput(null); setParams({ listing: result.data.id }); remember({ title: `Harvest ${shortId(result.data.id)}`, description: `${result.data.quantityKg} kg ${result.data.crop}`, href: `/app/farmer?listing=${result.data.id}` }); notify('Your confirmed harvest has been saved.'); }); }
+  async function publish() {
+    if (!publishInput) return;
+    await task('publish', async () => {
+      const result = await service.createListing(publishInput);
+      setListing(result.data);
+      setHarvests(old => [result.data, ...old.filter(row => row.id !== result.data.id)]);
+      setMeta(result.meta);
+      setPublishInput(null);
+      setParams({ listing: result.data.id });
+      remember({ title: `Harvest ${shortId(result.data.id)}`, description: `${result.data.quantityKg} kg ${result.data.crop}`, href: `/app/farmer?listing=${result.data.id}` });
+      notify('Your confirmed harvest has been saved.');
+    });
+  }
   async function generate() {
     if (!listing) return;
     await task('generate', async () => {
@@ -135,9 +163,11 @@ export default function Farmer() {
       setPlanMeta(result.meta);
       setBlockedPlanId(undefined);
       setParams(result.data.plan ? { listing: listing.id, plan: result.data.plan.id } : { listing: listing.id });
-      if (result.data.plan) remember({ title: `Proposal ${shortId(result.data.plan.id)}`,
+      if (result.data.plan) remember({
+        title: `Proposal ${shortId(result.data.plan.id)}`,
         description: `${money(result.data.plan.quoteSnapshot.netMinor)} estimated proceeds`,
-        href: `/app/farmer?listing=${listing.id}&plan=${result.data.plan.id}` });
+        href: `/app/farmer?listing=${listing.id}&plan=${result.data.plan.id}`
+      });
     });
   }
   async function decide(decision: 'accept' | 'reject') {
@@ -163,7 +193,29 @@ export default function Farmer() {
       notify('Proposal refreshed.');
     });
   }
-  function reset() { resetting.current = true; setListing(null); setPlan(null); setMeta(undefined); setPlanMeta(undefined); setBlockedPlanId(undefined); setOutcome(null); setParams({}); setText(''); setPickup({ lat: NaN, lng: NaN }); setPlaceQuery(''); setPlaceCandidates([]); setPlaceMessage(''); setForm({ crop: '', quantity: '', minimum: '', ready: '' }); setPhase('describe'); setErrors({}); setError(undefined); setConfirmed(false); setPinConfirmed(false); setResetOpen(false); setQuestions([]); }
+  function reset() {
+    resetting.current = true;
+    setListing(null);
+    setPlan(null);
+    setMeta(undefined);
+    setPlanMeta(undefined);
+    setBlockedPlanId(undefined);
+    setOutcome(null);
+    setParams({});
+    setText('');
+    setPickup({ lat: NaN, lng: NaN });
+    setPlaceQuery('');
+    setPlaceCandidates([]);
+    setPlaceMessage('');
+    setForm({ crop: '', quantity: '', minimum: '', ready: '' });
+    setPhase('describe');
+    setErrors({});
+    setError(undefined);
+    setConfirmed(false);
+    setPinConfirmed(false);
+    setResetOpen(false);
+    setQuestions([]);
+  }
   return <div className="workspace-grid"><div className="workspace-main"><ErrorNotice error={error} />{(planMeta || meta) && service.mode === 'api' && <ModeNotice meta={planMeta || meta} />}
     {!listing && phase === 'review' && <section className="panel" aria-label="Find pickup place"><h3>Find your pickup place</h3><p className="muted">Search a town or village from your description. The result is approximate; check the exact roadside pickup pin on the map below.</p><form onSubmit={event => { event.preventDefault(); void lookupPlace(placeQuery); }}><Field name="pickupPlace" label="Pickup town or village"><input id="pickupPlace" value={placeQuery} onChange={event => { setPlaceQuery(event.target.value); setPickup({ lat: NaN, lng: NaN }); setPinConfirmed(false); setPlaceCandidates([]); setPlaceMessage('Search this place or choose a pin manually.'); }} maxLength={120} placeholder="Dambulla / දඹුල්ල" /></Field><button className="button button-secondary" disabled={Boolean(busy) || placeBusy || !placeQuery.trim()}>{placeBusy ? 'Finding place…' : 'Find place'}</button></form>{placeMessage && <p className="small" role="status">{placeMessage}</p>}{placeCandidates.length > 1 && <div className="button-row" aria-label="Place suggestions">{placeCandidates.map((candidate, index) => <button key={`${candidate.label}-${index}`} type="button" className="button button-secondary" onClick={() => { setPickup(candidate.point); setPinConfirmed(false); setPlaceMessage('Approximate place selected. Move the pin to the exact roadside pickup point, then confirm it.'); }}>{candidate.label}</button>)}</div>}{service.mode === 'api' && <p className="small muted">Place search uses <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>. Search only place names; avoid personal details.</p>}</section>}
     {busy === 'load' ? <Skeleton label="Loading your harvest" /> : listing ? <section className="panel saved-listing"><div className="panel-topline"><span className="badge"><CheckCircle />Harvest saved</span><CopyButton text={listing.id} label="Copy listing ID" /></div><h2>{listing.quantityKg} kg of {listing.crop === 'tomato' ? 'tomatoes' : listing.crop === 'potato' ? 'potatoes' : 'carrots'}</h2><p className="muted">Listing {shortId(listing.id)} · Ready {dateTime(listing.readyAt)}</p><dl className="compact-details"><div><dt>Minimum net proceeds</dt><dd>{money(listing.minNetMinor)}</dd></div><div><dt>Pickup coordinates</dt><dd>{listing.pickup.lat.toFixed(4)}, {listing.pickup.lng.toFixed(4)}</dd></div></dl><div className="button-row"><button className="button" disabled={Boolean(busy)} onClick={generate}>{busy === 'generate' ? 'Finding options…' : plan ? 'Generate another proposal' : 'Find a proposal'}<ArrowRight /></button><button className="button button-secondary" disabled={Boolean(busy)} onClick={() => setResetOpen(true)}><Plus />New harvest</button></div></section> : phase === 'describe' ? <section className="panel"><div className="panel-topline"><span className="badge">Your harvest</span><Plant size={28} /></div><h2>What is ready<br />for its next journey?</h2><p className="muted">Describe your crop, quantity, location, ready date and minimum proceeds in English or Sinhala.</p><form onSubmit={extract} noValidate><ErrorSummary errors={errors} /><Field name="harvestText" label="Tell us about your harvest" error={errors.harvestText} hint="You will review and confirm everything before publishing."><textarea rows={6} value={text} onChange={e => setText(e.target.value)} maxLength={5000} disabled={Boolean(busy)} placeholder="For example: I have 80 kg of tomatoes in Dambulla…" /></Field><div className="button-row"><button className="button" disabled={Boolean(busy)}>{busy === 'extract' ? 'Reading your harvest…' : 'Review details'}<Sparkle /></button><button type="button" className="button button-secondary" onClick={sample} disabled={Boolean(busy)}>Try sample</button>{service.mode === 'api' && <><input ref={imageInput} className="sr-only" tabIndex={-1} aria-hidden="true" data-testid="harvest-image-file" type="file" accept="image/jpeg,image/png,image/webp" disabled={Boolean(busy)} onChange={event => { void uploadImage(event); }} /><button type="button" className="button button-secondary" onClick={() => imageInput.current?.click()} disabled={Boolean(busy)}><ImageSquare />{busy === 'image' ? 'Reading photo…' : 'Upload photo'}</button></>}</div>{service.mode === 'api' && <p className="small muted">Upload a photo of English or Sinhala harvest notes (JPEG, PNG, or WebP; up to 3 MB). Check the added text before continuing.</p>}{errors.harvestImage && <p className="field-error" role="alert">{errors.harvestImage}</p>}<button type="button" className="text-button form-manual" onClick={() => { setPhase('review'); setErrors({}); }} disabled={Boolean(busy)}><PencilSimple />Enter details manually</button></form>{busy === 'extract' && <Skeleton label="Extracting harvest details" />}</section> : <section className="panel"><div className="panel-topline"><span className="badge">Review & confirm</span><button className="text-button" onClick={() => setPhase('describe')} disabled={Boolean(busy)}>Edit description</button></div><h2>Make it yours.<br />Check every detail.</h2>{questions.length > 0 && <div className="notice notice-info"><Sparkle /><p>{questions.join(' ')}</p></div>}<form onSubmit={preparePublish} noValidate><ErrorSummary errors={errors} /><div className="form-grid"><Field name="crop" label="Crop" error={errors.crop}><select {...field('crop')}><option value="">Choose a crop</option><option value="tomato">Tomato</option><option value="potato">Potato</option><option value="carrot">Carrot</option></select></Field><Field name="quantityKg" label="Quantity (whole kg)" error={errors.quantityKg}><input type="number" min="1" step="1" {...field('quantity')} /></Field><Field name="minNetMinor" label="Minimum net proceeds (LKR)" error={errors.minNetMinor} hint="The total you want after transport, not a per-kg price."><input inputMode="decimal" {...field('minimum')} /></Field><Field name="readyAt" label="Ready date & time" error={errors.readyAt} hint="Sri Lanka time (Asia/Colombo)."><input type="datetime-local" {...field('ready')} /></Field></div><LocationPicker label="Pickup" name="pickup" value={pickup} onChange={value => { setPickup(value); setPinConfirmed(false); }} errors={errors} /><label className="checkbox-label"><input id="pickupConfirmation" type="checkbox" checked={pinConfirmed} onChange={e => setPinConfirmed(e.target.checked)} />I have checked the pickup pin.</label>{errors.pickupConfirmation && <p className="field-error">{errors.pickupConfirmation}</p>}<label className="checkbox-label"><input id="confirmed" type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />I confirm these harvest details are correct.</label>{errors.confirmed && <p className="field-error">Confirm your harvest details before publishing.</p>}<div className="button-row"><button className="button" disabled={Boolean(busy)}>Publish harvest<ArrowRight /></button><button type="button" className="button button-secondary" onClick={() => setResetOpen(true)} disabled={Boolean(busy)}>Discard</button></div></form></section>}
@@ -173,6 +225,11 @@ export default function Farmer() {
     {plan && plan.id === planId && listing && plan.listingId !== listing.id && <ErrorNotice error={new Error('This proposal belongs to a different harvest. Open its matching listing before reviewing a decision.')} />}
     {plan && plan.id === planId && listing && plan.listingId === listing.id && <Proposal key={plan.id} plan={plan} listing={listing} searchComplete={plan.searchComplete ?? (outcome?.plan?.id === plan.id ? outcome.searchComplete : undefined)} decisionUnavailable={blockedPlanId === plan.id} busy={Boolean(busy)} onDecision={decide} onRefresh={() => void refreshPlan()} />}
     {outcome && (outcome.alternatives.length > 0 || outcome.rejections.length > 0) && <details className="panel trace-details"><summary>Other evaluated options</summary>{outcome.alternatives.map(quote => <div className="record" key={quote.quoteId}><h3>Order {shortId(quote.orderId)}</h3><p>Estimated proceeds: {money(quote.netMinor)}</p><p className="small muted">Transport: {money(quote.transportMinor)}. This is an evaluated alternative, not the selected proposal.</p></div>)}{outcome.rejections.map((rejection, index) => <p className="small muted" key={index}>Order {shortId(rejection.orderId)}: {rejection.codes.join(', ').replaceAll('_', ' ')}</p>)}</details>}
+    <section className="panel" aria-labelledby="my-harvests-title">
+      <div className="panel-topline"><h2 id="my-harvests-title" className="compact-heading">My harvests</h2><button className="icon-button" aria-label="Refresh harvests" disabled={loadingHarvests || Boolean(busy)} onClick={() => void loadHarvests()}><ArrowClockwise /></button></div>
+      <ErrorNotice error={harvestsError} retry={() => void loadHarvests()} />
+      {loadingHarvests ? <Skeleton label="Loading saved harvests" /> : !harvestsError && !harvests.length ? <div className="empty-state"><Plant size={32} /><h3>No saved harvests yet.</h3><p>Publish a harvest and it will appear here when you return.</p></div> : <div className="record-list">{harvests.map(row => <article key={row.id} className={`record ${listing?.id === row.id ? 'selected-record' : ''}`}><div className="record-heading"><h3>{row.quantityKg} kg {row.crop}</h3><span className="badge">{row.status}</span></div><p>Minimum proceeds: {money(row.minNetMinor)}</p><p className="small muted">Ready {dateTime(row.readyAt)}</p><div className="record-footer"><button className="text-button" aria-label={`Open harvest ${shortId(row.id)}`} disabled={Boolean(busy)} onClick={() => openHarvest(row)}>Open harvest<ArrowRight /></button><CopyButton text={row.id} label="Copy harvest ID" /></div></article>)}</div>}
+    </section>
   </div><aside className="workspace-aside"><img src="/images/farmer-480.webp" width="480" height="600" alt="Farmer carefully picking ripe tomatoes" loading="lazy" /><div className="aside-content"><Plant size={29} /><h3>Your harvest.<br />Your decision.</h3><p>Review details, pickup location and estimated proceeds before taking the next step.</p><ul><li>Whole harvest quantities</li><li>Transparent transport estimates</li><li>Your minimum proceeds respected</li></ul><p className="small muted">Acceptance still requires buyer and transporter confirmations.</p></div></aside>
     <Confirm open={Boolean(publishInput)} onClose={() => setPublishInput(null)} onConfirm={() => void publish()} title="Publish this harvest?" label="Confirm publication" busy={busy === 'publish'}><p>You are publishing {publishInput?.quantityKg} kg of {publishInput?.crop} with minimum net proceeds of {money(publishInput?.minNetMinor || 0)}. Check that the pickup and ready time are correct.</p></Confirm>
     <Confirm open={resetOpen} onClose={() => setResetOpen(false)} onConfirm={reset} title={listing ? 'Start a new harvest?' : 'Discard these details?'} label={listing ? 'Start new harvest' : 'Discard details'}><p>{listing ? 'Your saved listing remains available through its ID. This opens a fresh harvest form.' : 'Your unsaved description and form entries will be cleared.'}</p></Confirm>

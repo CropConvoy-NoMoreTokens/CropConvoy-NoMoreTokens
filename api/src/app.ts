@@ -19,22 +19,21 @@ export interface AppOptions {
   logisticsForGeneration?: WorkflowOptions['logisticsForGeneration'];
 }
 
-export function createApp(deps: Dependencies, origins: string[], options: AppOptions = {}) {
+// Retain the origins argument for existing callers; CORS now permits every origin.
+export function createApp(deps: Dependencies, _origins: string[], options: AppOptions = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.use((req, res, next) => {
     const started = process.hrtime.bigint();
     res.locals.requestId = randomUUID();
     res.setHeader('X-Request-Id', res.locals.requestId);
+
     res.once('finish', () => console.log(JSON.stringify({ event: 'request',
       requestId: res.locals.requestId, method: req.method, path: req.path,
       status: res.statusCode, durationMs: Number(process.hrtime.bigint() - started) / 1e6 })));
     next();
   });
-  app.use(cors({ exposedHeaders: ['X-Request-Id'], origin(origin, callback) {
-    if (!origin || origins.includes(origin)) callback(null, true);
-    else callback(new ApiError(403, 'ORIGIN_NOT_ALLOWED', 'This browser origin is not allowed'));
-  } }));
+  app.use(cors({ origin: '*', exposedHeaders: ['X-Request-Id'] }));
   app.use(express.json({ limit: '64kb' }));
   // Per-process IP limit for the demo; a multi-instance deployment needs a shared store.
   // P2 must configure trust proxy for the verified hosting topology before public deployment.
@@ -88,7 +87,17 @@ export function createApp(deps: Dependencies, origins: string[], options: AppOpt
         fields: error.issues.map(issue => ({ path: issue.path.join('.'), message: issue.message })) } });
       return;
     }
-    if (error instanceof ApiError) { res.status(error.status).json({ error: { code: error.code, message: error.message } }); return; }
+    if (error instanceof ApiError) {
+      const fields = (error as { fields?: unknown }).fields;
+      res.status(error.status).json({
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(Array.isArray(fields) && fields.length ? { fields } : {}),
+        },
+      });
+      return;
+    }
     const bodyError = error as { type?: string } | null;
     if (bodyError?.type === 'entity.parse.failed') { res.status(400).json({ error: { code: 'INVALID_JSON', message: 'Request must contain valid JSON' } }); return; }
     if (bodyError?.type === 'entity.too.large') { res.status(413).json({ error: { code: 'BODY_TOO_LARGE', message: _req.path === '/api/harvest/image-text' ? 'Image exceeds 3 MB' : 'Request exceeds 64 KB' } }); return; }

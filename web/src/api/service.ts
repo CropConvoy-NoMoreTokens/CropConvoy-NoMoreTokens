@@ -9,6 +9,7 @@ export function createHttpService(): CropConvoyService {
     }),
     resolveLocation: place => post<{ candidates: PlaceCandidate[] }>('/api/locations/resolve', { place }),
     createListing: input => post<Listing>('/api/listings', input), getListing: id => apiRequest<Listing>(`/api/listings/${encodeURIComponent(id)}`),
+    listListings: farmerId => apiRequest<Listing[]>(`/api/listings?demoFarmerId=${encodeURIComponent(farmerId)}`),
     listOrders: () => apiRequest<Order[]>('/api/orders'), createOrder: input => post<Order>('/api/orders', input),
     listTrips: () => apiRequest<Trip[]>('/api/trips'), createTrip: input => post<Trip>('/api/trips', input),
     generate: listingId => post<GenerationResult>('/api/plans/generate', { listingId }), getPlan: id => apiRequest<Plan>(`/api/plans/${encodeURIComponent(id)}`),

@@ -42,6 +42,7 @@ export function createDemoService(storage: Pick<Storage, 'getItem' | 'setItem'> 
     },
     async createListing(input: ListingInput) { const row: Listing = { ...input, id: uuid(), status: 'open', createdAt: new Date().toISOString() }; memory.listings.push(row); save(); return result(row); },
     async getListing(id) { return result(getListing(id)); },
+    async listListings(farmerId) { return result(memory.listings.filter(row => row.demoFarmerId === farmerId).sort((a,b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))); },
     async listOrders() { return result(memory.orders); },
     async createOrder(input: OrderInput) { const row: Order = { ...input, id: uuid(), status: 'open', createdAt: new Date().toISOString() }; memory.orders.push(row); save(); return result(row); },
     async listTrips() { return result(memory.trips); },
