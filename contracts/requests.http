@@ -1,51 +1,94 @@
 @base = http://localhost:3001
 # Run with a REST Client extension, or use these JSON bodies in your HTTP client.
 # Replace IDs below with IDs returned by the create endpoints.
+# PostgreSQL API mode requires a session. Run each named login before its role's requests.
+# These are the public demo credentials; tokens remain response variables, not committed values.
 
 ### Liveness (200); readiness is /ready (503 until PostgreSQL repositories work)
 GET {{base}}/health
 
+### Readiness requires all source, quote, plan, tariff and auth migrations
+GET {{base}}/ready
+
+### Farmer demo login
+# @name farmerLogin
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"username":"farmer","password":"FarmerDemo123!"}
+
+### Buyer demo login
+# @name buyerLogin
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"username":"buyer","password":"BuyerDemo123!"}
+
+### Transporter demo login
+# @name transporterLogin
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"username":"transporter","password":"TransportDemo123!"}
+
 ### Extract - intentionally returns null fields in stub mode
 POST {{base}}/api/harvest/extract
+Authorization: Bearer {{farmerLogin.response.body.$.data.token}}
 Content-Type: application/json
 
 {"text":"80 kg tomatoes ready tomorrow in Dambulla","localTimeContext":{"now":"2026-10-24T04:30:00Z","timeZone":"Asia/Colombo"}}
 
 ### Publish confirmed listing; copy response.data.id into generate
 POST {{base}}/api/listings
+Authorization: Bearer {{farmerLogin.response.body.$.data.token}}
 Content-Type: application/json
 
 {"demoFarmerId":"11111111-1111-4111-8111-111111111111","crop":"tomato","quantityKg":80,"pickup":{"lat":7.8742,"lng":80.6511},"readyAt":"2026-10-25T02:30:00Z","minNetMinor":1600000,"confirmed":true}
 
 ### Create order
 POST {{base}}/api/orders
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
 Content-Type: application/json
 
 {"demoBuyerId":"22222222-2222-4222-8222-222222222222","crop":"tomato","remainingKg":100,"pricePerKgMinor":22000,"delivery":{"lat":7.2906,"lng":80.6337},"deadlineAt":"2026-10-25T12:30:00Z","allowsPartial":true}
 
 ### List orders
 GET {{base}}/api/orders
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
 
 ### List persisted weight-distance-v2 trips (empty in explicit stub mode)
 GET {{base}}/api/trips
+Authorization: Bearer {{transporterLogin.response.body.$.data.token}}
 
 ### Create trip - requires configured road routing, migrations 001/002 and API_STUBS=false
 POST {{base}}/api/trips
+Authorization: Bearer {{transporterLogin.response.body.$.data.token}}
 Content-Type: application/json
 
 {"demoTransporterId":"33333333-3333-4333-8333-333333333333","start":{"lat":7.95,"lng":80.65},"end":{"lat":7.25,"lng":80.63},"departureAt":"2026-10-25T03:00:00Z","availableKg":120,"corridorM":3000,"maxExtraDistanceM":10000,"maxExtraTimeS":3600,"baseMinor":35000,"perKmMinor":10000,"handlingMinor":0,"ratePerKgKmMinor":20,"pricingVersion":"weight-distance-v2"}
 
 ### Replace listingId with a real POST /api/listings result (this example ID returns 404)
 POST {{base}}/api/plans/generate
+Authorization: Bearer {{farmerLogin.response.body.$.data.token}}
 Content-Type: application/json
 
 {"listingId":"44444444-4444-4444-8444-444444444444"}
 
 ### Retrieve proposal - replace with response.data.plan.id from a successful generation
 GET {{base}}/api/plans/88888888-8888-4888-8888-888888888888
+Authorization: Bearer {{farmerLogin.response.body.$.data.token}}
 
 ### Decision - 404 for this synthetic ID; real stale/expired/conflicting proposals give 409
 POST {{base}}/api/plans/88888888-8888-4888-8888-888888888888/decision
+Authorization: Bearer {{farmerLogin.response.body.$.data.token}}
 Content-Type: application/json
 
 {"decision":"accept"}
+
+### Restore farmer identity
+GET {{base}}/api/auth/me
+Authorization: Bearer {{farmerLogin.response.body.$.data.token}}
+
+### Revoke farmer session (run last, or sign in again afterward)
+POST {{base}}/api/auth/logout
+Authorization: Bearer {{farmerLogin.response.body.$.data.token}}

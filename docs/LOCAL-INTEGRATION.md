@@ -70,7 +70,7 @@ npm run build
 npm run contracts:export
 ```
 For dedicated test databases, set LOGISTICS_TEST_DATABASE_URL and P4_TEST_DATABASE_URL before npm test.
-Those opt-in tests create/drop only randomly named test schemas. Never use an unreviewed production database for test writes.
+Those opt-in tests create/drop their own randomly named test schemas or local databases. The process-restart suite requires a local role with CREATE DATABASE permission. Never use an unreviewed production database for test writes.
 
 From web/: npm test; npm run build.
 The local integrated-http test uses actual services and PostgreSQL with explicitly synthetic routing and unavailable model adapters; the separate browser smoke used a real road provider.
@@ -84,3 +84,7 @@ The combined test now runs real P2/P3/P4 modules and the actual migration CLI tw
 
 
 Repeat the current live-provider check with `P4_TEST_DATABASE_URL=postgresql://... npm run api:integration-check` from api/. It creates/migrates/removes only a generated local database; it never writes the configured hosted DATABASE_URL. Actual routing and model calls are bounded. The live result was mode=live/searchComplete=true, 93,258.7 m original route, LKR 595.63 transport and LKR 17,004.37 estimated proceeds for the synthetic 80 kg sale. This is a tested integration example, not a shipment offer, verified heavy-truck route or production SLA.
+
+## Authentication rebase
+
+The latest rebase retains the session middleware, auth readiness tables and server-confirmed UI identity alongside scoped logistics/workflow wiring. HTTP integration suites and the provider check now sign in as each role and reuse sessions after restarting the API. Fixed business clocks remain deterministic; isolated test session expiry is set against PostgreSQL time. Browser workflow tests restore the farmer through /api/auth/me and verify bearer headers. Contract requests include named role logins. No tests, builds, migrations or provider checks were run during this rebase; the results above describe earlier verification.

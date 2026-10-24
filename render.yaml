@@ -1,0 +1,31 @@
+# Match this name to the existing Render service before linking a Blueprint.
+# Dashboard-managed services must also apply these build/start settings manually.
+services:
+  - type: web
+    name: cropconvoy-api
+    runtime: node
+    rootDir: api
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: API_STUBS
+        value: "false"
+      - key: MAX_PLAN_MS
+        value: "45000"
+      - key: ROUTING_PROFILE
+        value: driving
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: ROUTING_BASE_URL
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        sync: false
