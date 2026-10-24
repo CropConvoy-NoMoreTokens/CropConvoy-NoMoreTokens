@@ -1,0 +1,13 @@
+:root { font-family: system-ui, sans-serif; color: #18382b; background: #f5f4ec; font-synthesis: none; }
+body { margin: 0; }
+main { max-width: 760px; margin: 0 auto; padding: 64px 24px; }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); letter-spacing: -.04em; line-height: 1.1; margin: 16px 0; }
+p { line-height: 1.7; }
+.eyebrow { font-size: .75rem; letter-spacing: .12em; }
+nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 32px 0; }
+button { font: inherit; padding: 10px 18px; border-radius: 6px; border: 1px solid #73877b; color: inherit; background: transparent; cursor: pointer; }
+button[aria-pressed="true"] { background: #18382b; color: white; }
+button:focus-visible { outline: 3px solid #b07b24; outline-offset: 3px; }
+button:disabled { opacity: .6; cursor: wait; }
+section { border-top: 1px solid #c9cfc4; padding: 12px 0 20px; }
+.notice { background: #eee5ce; padding: 14px; color: #5b491e; }

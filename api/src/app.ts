@@ -1,0 +1,59 @@
+import { randomUUID } from 'node:crypto';
+import express, { Router, type ErrorRequestHandler } from 'express';
+import cors from 'cors';
+import { rateLimit } from 'express-rate-limit';
+import { ZodError } from 'zod';
+import type { Dependencies } from './core/dependencies.js';
+import { ApiError } from './core/errors.js';
+import { reply } from './core/http.js';
+import { createMarketRepository } from './modules/market/repository.js';
+import { registerRoutes as marketRoutes } from './modules/market/routes.js';
+import { createLogisticsService } from './modules/logistics/service.js';
+import { registerRoutes as logisticsRoutes } from './modules/logistics/routes.js';
+import { createWorkflowService } from './modules/workflow/service.js';
+import { registerRoutes as workflowRoutes } from './modules/workflow/routes.js';
+
+export function createApp(deps: Dependencies, origins: string[]) {
+  const app = express();
+  app.disable('x-powered-by');
+  app.use((_req, res, next) => { res.locals.requestId = randomUUID(); res.setHeader('X-Request-Id', res.locals.requestId); next(); });
+  app.use(cors({ origin(origin, callback) {
+    if (!origin || origins.includes(origin)) callback(null, true);
+    else callback(new ApiError(403, 'ORIGIN_NOT_ALLOWED', 'This browser origin is not allowed'));
+  } }));
+  app.use(express.json({ limit: '64kb' }));
+  // Per-process IP limit for the demo; a multi-instance deployment needs a shared store.
+  // P2 must configure trust proxy for the verified hosting topology before public deployment.
+  app.use('/api', rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false,
+    handler(_req, res) { res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many requests; try again in a minute' } }); } }));
+  app.get('/health', (_req, res) => reply(res, deps, { status: 'ok', version: '0.1.0', implementation: 'starter' }));
+  app.get('/ready', async (_req, res) => {
+    if (deps.mode === 'stub' || deps.persistence !== 'postgres') throw new ApiError(503, 'NOT_READY', 'Starter uses temporary memory; PostgreSQL repositories are pending');
+    await deps.db.ping();
+    return reply(res, deps, { status: 'ready' });
+  });
+  const market = createMarketRepository(deps);
+  const logistics = createLogisticsService(deps);
+  const workflow = createWorkflowService(deps, market, logistics);
+  const router = Router();
+  marketRoutes(router, deps, market);
+  logisticsRoutes(router, deps, logistics);
+  workflowRoutes(router, deps, workflow);
+  app.use(router);
+  app.use((_req, _res, next) => next(new ApiError(404, 'NOT_FOUND', 'Endpoint not found')));
+  const errors: ErrorRequestHandler = (error: unknown, _req, res, _next) => {
+    if (error instanceof ZodError) {
+      res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'Check the submitted fields',
+        fields: error.issues.map(issue => ({ path: issue.path.join('.'), message: issue.message })) } });
+      return;
+    }
+    if (error instanceof ApiError) { res.status(error.status).json({ error: { code: error.code, message: error.message } }); return; }
+    const bodyError = error as { type?: string } | null;
+    if (bodyError?.type === 'entity.parse.failed') { res.status(400).json({ error: { code: 'INVALID_JSON', message: 'Request must contain valid JSON' } }); return; }
+    if (bodyError?.type === 'entity.too.large') { res.status(413).json({ error: { code: 'BODY_TOO_LARGE', message: 'Request exceeds 64 KB' } }); return; }
+    console.error(JSON.stringify({ requestId: res.locals.requestId, event: 'request_failed' }));
+    res.status(503).json({ error: { code: 'DEPENDENCY_UNAVAILABLE', message: 'A required service is unavailable' } });
+  };
+  app.use(errors);
+  return app;
+}
