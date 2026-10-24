@@ -1,5 +1,5 @@
 import { describe, test, expect, vi } from 'vitest';
-import { render, screen, within, waitFor } from '@testing-library/react';
+import { render, screen, within, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AppRoutes } from '../App';
@@ -160,4 +160,20 @@ test('saved harvests can be reopened after signing out and back in', async () =>
   await user.click(await within(restored).findByRole('button', { name: /Open harvest/ }));
   expect(await screen.findByText('Harvest saved')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Find a proposal' })).toBeInTheDocument();
+});
+
+
+test('a delayed harvest response clears loading and enables actions after a deep link', async () => {
+  const service = createDemoService();
+  const saved = await service.createListing({ demoFarmerId: DEMO_IDS.farmer, crop: 'tomato', quantityKg: 80, pickup: { lat: 7.87, lng: 80.65 }, readyAt: colomboToUtc(tomorrowAt(8)), minNetMinor: 1400000, confirmed: true });
+  let resolve!: (value: typeof saved) => void;
+  const response = new Promise<typeof saved>(done => { resolve = done; });
+  const getListing = vi.fn(() => response);
+  start(`/app/farmer?listing=${saved.data.id}`, 'farmer', { ...service, getListing });
+  await screen.findByLabelText('Loading your harvest');
+  await act(async () => { resolve(saved); });
+  expect(await screen.findByText('Harvest saved')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Find a proposal' })).toBeEnabled();
+  expect(screen.queryByLabelText('Loading your harvest')).not.toBeInTheDocument();
+  expect(getListing).toHaveBeenCalledTimes(1);
 });

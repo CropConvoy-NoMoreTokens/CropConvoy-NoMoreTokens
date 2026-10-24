@@ -51,11 +51,13 @@ export default function Farmer() {
   const field = (key: keyof typeof form) => ({ value: form[key], onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(old => ({ ...old, [key]: e.target.value })) });
   useEffect(() => {
     if (resetting.current) { if (!listingId) resetting.current = false; return; }
-    if (!listingId || listing?.id === listingId) return;
+    if (!listingId) { setBusy(current => current === 'load' ? '' : current); return; }
     let active = true; setBusy('load');
     service.getListing(listingId).then(result => { if (active) { setListing(result.data); setMeta(result.meta); setError(undefined); remember({ title: `Harvest ${shortId(result.data.id)}`, description: `${result.data.quantityKg} kg ${result.data.crop}`, href: `/app/farmer?listing=${result.data.id}` }); } }).catch(e => { if (active) setError(e); }).finally(() => { if (active) setBusy(''); });
     return () => { active = false; };
-  }, [listingId, service, listing?.id, remember]);
+    // Loading is keyed by the URL, not by the response state it updates.
+    // Depending on listing.id cancels this effect before finally can clear busy.
+  }, [listingId, service, remember]);
   useEffect(() => {
     if (resetting.current) return;
     if (!planId || plan?.id === planId) return;
