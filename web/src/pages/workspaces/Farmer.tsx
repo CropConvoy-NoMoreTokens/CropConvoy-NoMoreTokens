@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowRight, Sparkle, Plant, CheckCircle, Plus, PencilSimple, ArrowClockwise } from '@phosphor-icons/react';
 import type { Crop, Listing, ListingInput, Plan, GenerationResult, Point, Meta } from '../../api/types';
@@ -21,6 +21,9 @@ export default function Farmer() {
   const [pinConfirmed, setPinConfirmed] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [listing, setListing] = useState<Listing | null>(null);
+  const [harvests, setHarvests] = useState<Listing[]>([]);
+  const [loadingHarvests, setLoadingHarvests] = useState(true);
+  const [harvestsError, setHarvestsError] = useState<unknown>();
   const [plan, setPlan] = useState<Plan | null>(null);
   const [outcome, setOutcome] = useState<GenerationResult | null>(null);
   const [meta, setMeta] = useState<Meta>();
@@ -34,6 +37,17 @@ export default function Farmer() {
   const [questions, setQuestions] = useState<string[]>([]);
   const listingId = params.get('listing');
   const planId = params.get('plan');
+  const loadHarvests = useCallback(async () => {
+    setLoadingHarvests(true); setHarvestsError(undefined);
+    try { const result = await service.listListings(DEMO_IDS.farmer); setHarvests(result.data); }
+    catch (e) { setHarvestsError(e); }
+    finally { setLoadingHarvests(false); }
+  }, [service]);
+  useEffect(() => { void loadHarvests(); }, [loadHarvests]);
+  function openHarvest(row: Listing) {
+    setListing(row); setPlan(null); setOutcome(null); setError(undefined); setErrors({});
+    setParams({ listing: row.id });
+  }
   const field = (key: keyof typeof form) => ({ value: form[key], onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(old => ({ ...old, [key]: e.target.value })) });
   useEffect(() => {
     if (resetting.current) { if (!listingId) resetting.current = false; return; }
@@ -76,7 +90,7 @@ export default function Farmer() {
     setErrors(problems);
     if (result.success && pinConfirmed) setPublishInput(result.data);
   }
-  async function publish() { if (!publishInput) return; await task('publish', async () => { const result = await service.createListing(publishInput); setListing(result.data); setMeta(result.meta); setPublishInput(null); setParams({ listing: result.data.id }); remember({ title: `Harvest ${shortId(result.data.id)}`, description: `${result.data.quantityKg} kg ${result.data.crop}`, href: `/app/farmer?listing=${result.data.id}` }); notify('Your confirmed harvest has been saved.'); }); }
+  async function publish() { if (!publishInput) return; await task('publish', async () => { const result = await service.createListing(publishInput); setListing(result.data); setHarvests(old => [result.data, ...old.filter(row => row.id !== result.data.id)]); setMeta(result.meta); setPublishInput(null); setParams({ listing: result.data.id }); remember({ title: `Harvest ${shortId(result.data.id)}`, description: `${result.data.quantityKg} kg ${result.data.crop}`, href: `/app/farmer?listing=${result.data.id}` }); notify('Your confirmed harvest has been saved.'); }); }
   async function generate() { if (!listing) return; await task('generate', async () => { const result = await service.generate(listing.id); setOutcome(result.data); setPlan(result.data.plan); setMeta(result.meta); if (result.data.plan) { setParams({ listing: listing.id, plan: result.data.plan.id }); remember({ title: `Proposal ${shortId(result.data.plan.id)}`, description: `${money(result.data.plan.quoteSnapshot.netMinor)} estimated proceeds`, href: `/app/farmer?listing=${listing.id}&plan=${result.data.plan.id}` }); } }); }
   async function decide(decision: 'accept' | 'reject') { if (!plan) return; await task('decision', async () => { const result = await service.decide(plan.id, decision); setPlan(result.data); setMeta(result.meta); notify(decision === 'accept' ? 'Pending buyer and transporter confirmations.' : 'Proposal rejected.'); }); }
   async function refreshPlan() { if (!plan) return; await task('refresh', async () => { const result = await service.getPlan(plan.id); setPlan(result.data); setMeta(result.meta); notify('Proposal refreshed.'); }); }
@@ -89,6 +103,11 @@ export default function Farmer() {
     {plan && listing && plan.listingId !== listing.id && <ErrorNotice error={new Error('This proposal belongs to a different harvest. Open its matching listing before reviewing a decision.')} />}
     {plan && listing && plan.listingId === listing.id && <Proposal plan={plan} listing={listing} busy={Boolean(busy)} onDecision={decide} onRefresh={() => void refreshPlan()} />}
     {outcome && (outcome.alternatives.length > 0 || outcome.rejections.length > 0) && <details className="panel trace-details"><summary>Other evaluated options</summary>{outcome.alternatives.map(quote => <div className="record" key={quote.quoteId}><h3>Order {shortId(quote.orderId)}</h3><p>Estimated proceeds: {money(quote.netMinor)}</p><p className="small muted">Transport: {money(quote.transportMinor)}. This is an evaluated alternative, not the selected proposal.</p></div>)}{outcome.rejections.map((rejection, index) => <p className="small muted" key={index}>Order {shortId(rejection.orderId)}: {rejection.codes.join(', ').replaceAll('_', ' ')}</p>)}</details>}
+    <section className="panel" aria-labelledby="my-harvests-title">
+      <div className="panel-topline"><h2 id="my-harvests-title" className="compact-heading">My harvests</h2><button className="icon-button" aria-label="Refresh harvests" disabled={loadingHarvests || Boolean(busy)} onClick={() => void loadHarvests()}><ArrowClockwise /></button></div>
+      <ErrorNotice error={harvestsError} retry={() => void loadHarvests()} />
+      {loadingHarvests ? <Skeleton label="Loading saved harvests" /> : !harvestsError && !harvests.length ? <div className="empty-state"><Plant size={32} /><h3>No saved harvests yet.</h3><p>Publish a harvest and it will appear here when you return.</p></div> : <div className="record-list">{harvests.map(row => <article key={row.id} className={`record ${listing?.id === row.id ? 'selected-record' : ''}`}><div className="record-heading"><h3>{row.quantityKg} kg {row.crop}</h3><span className="badge">{row.status}</span></div><p>Minimum proceeds: {money(row.minNetMinor)}</p><p className="small muted">Ready {dateTime(row.readyAt)}</p><div className="record-footer"><button className="text-button" aria-label={`Open harvest ${shortId(row.id)}`} disabled={Boolean(busy)} onClick={() => openHarvest(row)}>Open harvest<ArrowRight /></button><CopyButton text={row.id} label="Copy harvest ID" /></div></article>)}</div>}
+    </section>
   </div><aside className="workspace-aside"><img src="/images/farmer-480.webp" width="480" height="600" alt="Farmer carefully picking ripe tomatoes" loading="lazy" /><div className="aside-content"><Plant size={29} /><h3>Your harvest.<br />Your decision.</h3><p>Review details, pickup location and estimated proceeds before taking the next step.</p><ul><li>Whole harvest quantities</li><li>Transparent transport estimates</li><li>Your minimum proceeds respected</li></ul><p className="small muted">Acceptance still requires buyer and transporter confirmations.</p></div></aside>
     <Confirm open={Boolean(publishInput)} onClose={() => setPublishInput(null)} onConfirm={() => void publish()} title="Publish this harvest?" label="Confirm publication" busy={busy === 'publish'}><p>You are publishing {publishInput?.quantityKg} kg of {publishInput?.crop} with minimum net proceeds of {money(publishInput?.minNetMinor || 0)}. Check that the pickup and ready time are correct.</p></Confirm>
     <Confirm open={resetOpen} onClose={() => setResetOpen(false)} onConfirm={reset} title={listing ? 'Start a new harvest?' : 'Discard these details?'} label={listing ? 'Start new harvest' : 'Discard details'}><p>{listing ? 'Your saved listing remains available through its ID. This opens a fresh harvest form.' : 'Your unsaved description and form entries will be cleared.'}</p></Confirm>

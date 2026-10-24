@@ -22,6 +22,7 @@ export interface CropConvoyService {
   extract(input: ExtractInput): Promise<Result<ExtractResult>>;
   createListing(input: ListingInput): Promise<Result<Listing>>;
   getListing(id: string): Promise<Result<Listing>>;
+  listListings(farmerId: string): Promise<Result<Listing[]>>;
   listOrders(): Promise<Result<Order[]>>;
   createOrder(input: OrderInput): Promise<Result<Order>>;
   listTrips(): Promise<Result<Trip[]>>;

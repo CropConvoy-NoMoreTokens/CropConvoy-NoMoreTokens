@@ -113,3 +113,8 @@ Model adapter output for advocate is the strict normalized tool call `{tool:'rev
 Regenerate the reference pack from api/: `npm run contracts:export` then `node --import tsx src/modules/workflow/export-contracts.ts`. The supplemental P4 exporter only extends the generated reference artifact. P2 should add its schema list to the existing exporter and retire the extra command. JSON Schema describes structure; arithmetic and cross-record invariants also run in code.
 
 Integrated result schemas include the kg-km rate, charge breakdown and quote expiry. Plan expiry cannot exceed quote expiry. The consolidated contracts:export command now exports all request/source/quote/plan/generation schemas. See LOCAL-INTEGRATION.md for branch and verification details.
+
+
+### Saved farmer harvests
+
+`GET /api/listings?demoFarmerId=<UUID>` returns the listing array for the supplied prototype farmer ID, newest first (createdAt then ID descending), in the normal data/meta envelope. Missing or invalid UUIDs return 422. The farmer workspace loads this on entry and offers Open harvest and refresh. Existing listings require no migration. The query parameter filters records; it is not authentication or authorization. Public role selection still uses the shared prototype farmer ID.

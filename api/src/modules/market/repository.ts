@@ -6,6 +6,7 @@ import { ApiError, pending } from '../../core/errors.js';
 export interface MarketRepository {
   createListing(input: ListingInput): Promise<Listing>;
   getListing(id: string): Promise<Listing>;
+  listListings(farmerId: string): Promise<Listing[]>;
   createOrder(input: OrderInput): Promise<Order>;
   listOrders(): Promise<Order[]>;
 }
@@ -57,6 +58,11 @@ export function createMarketRepository(deps: Dependencies): MarketRepository {
       if (!rows[0]) throw new ApiError(404, 'NOT_FOUND', 'Listing not found');
       return listing(rows[0]);
     },
+    async listListings(farmerId) {
+      const { rows } = await deps.db.query<ListingRow>(
+        'SELECT * FROM listings WHERE demo_farmer_id = $1 ORDER BY created_at DESC, id DESC', [farmerId]);
+      return rows.map(listing);
+    },
     async createOrder(input) {
       const { rows } = await deps.db.query<OrderRow>(
         `INSERT INTO orders (id, demo_buyer_id, crop, remaining_kg, price_per_kg_minor,
@@ -78,6 +84,7 @@ export function createMarketRepository(deps: Dependencies): MarketRepository {
     async createListing(input) { guard(); const row: Listing = { ...input, id: randomUUID(), status: 'open', createdAt: deps.clock.now().toISOString() }; listings.set(row.id, row); return row; },
     async getListing(id) { guard(); const row = listings.get(id); if (!row) throw new ApiError(404, 'NOT_FOUND', 'Listing not found'); return row; },
     async createOrder(input) { guard(); const row: Order = { ...input, id: randomUUID(), status: 'open', createdAt: deps.clock.now().toISOString() }; orders.set(row.id, row); return row; },
+    async listListings(farmerId) { guard(); return [...listings.values()].filter(row => row.demoFarmerId === farmerId).sort((a,b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id)); },
     async listOrders() { guard(); return [...orders.values()]; },
   };
 }

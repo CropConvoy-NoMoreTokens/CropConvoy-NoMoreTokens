@@ -143,3 +143,21 @@ describe('demo accounts and role workflows', () => {
     await user.click(screen.getByRole('button', { name: 'Clear form' })); await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Clear form' })); expect(screen.getByLabelText('Available capacity (whole kg)')).toHaveValue(null);
   });
 });
+
+
+test('saved harvests can be reopened after signing out and back in', async () => {
+  const service = createDemoService();
+  const saved = await service.createListing({ demoFarmerId: DEMO_IDS.farmer, crop: 'tomato', quantityKg: 80, pickup: { lat: 7.87, lng: 80.65 }, readyAt: colomboToUtc(tomorrowAt(8)), minNetMinor: 1400000, confirmed: true });
+  await service.createListing({ ...saved.data, demoFarmerId: '99999999-9999-4999-8999-999999999999', quantityKg: 999 });
+  const user = start('/app/farmer', 'farmer', service);
+  const list = await screen.findByRole('region', { name: 'My harvests' });
+  expect(await within(list).findByText('80 kg tomato')).toBeInTheDocument();
+  expect(within(list).queryByText('999 kg tomato')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Sign out' }));
+  await user.click(await screen.findByRole('button', { name: 'Use farmer demo account' }));
+  await user.click(screen.getByRole('button', { name: 'Enter demo' }));
+  const restored = await screen.findByRole('region', { name: 'My harvests' });
+  await user.click(await within(restored).findByRole('button', { name: /Open harvest/ }));
+  expect(await screen.findByText('Harvest saved')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Find a proposal' })).toBeInTheDocument();
+});

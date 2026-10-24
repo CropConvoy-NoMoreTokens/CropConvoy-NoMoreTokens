@@ -11,6 +11,7 @@ export function registerRoutes(router: Router, deps: Dependencies, repository: M
     return reply(res, deps, result);
   });
   router.post('/api/listings', async (req, res) => reply(res, deps, await repository.createListing(listingInputSchema.parse(req.body)), 201));
+  router.get('/api/listings', async (req, res) => reply(res, deps, await repository.listListings(idSchema.parse(req.query.demoFarmerId))));
   router.get('/api/listings/:id', async (req, res) => reply(res, deps, await repository.getListing(idSchema.parse(req.params.id))));
   router.get('/api/orders', async (_req, res) => reply(res, deps, await repository.listOrders()));
   router.post('/api/orders', async (req, res) => reply(res, deps, await repository.createOrder(orderInputSchema.parse(req.body)), 201));

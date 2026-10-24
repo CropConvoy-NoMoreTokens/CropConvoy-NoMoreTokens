@@ -49,6 +49,12 @@ test('real modules integrate over HTTP: persist sources, route, quote, review, a
     server=createApp(deps,['http://localhost:5173']).listen(0,'127.0.0.1');
     await new Promise<void>(resolve=>server.once('listening',resolve));
     base='http://127.0.0.1:'+(server.address() as AddressInfo).port;
+    const harvestsResponse=await fetch(base+'/api/listings?demoFarmerId='+listingInput.demoFarmerId);
+    assert.equal(harvestsResponse.status,200);
+    assert.deepEqual((await harvestsResponse.json()).data.map((row:{id:string})=>row.id),[listing.id]);
+    const otherHarvests=await (await fetch(base+'/api/listings?demoFarmerId='+randomUUID())).json();
+    assert.deepEqual(otherHarvests.data,[]);
+    assert.equal((await fetch(base+'/api/listings?demoFarmerId=invalid')).status,422);
     const persisted=await (await fetch(base+'/api/plans/'+plan.id)).json();
     assert.equal(persisted.data.status,'farmer_accepted_pending_confirmations');
     assert.equal(persisted.data.quoteSnapshot.transportMinor,q.transportMinor);
