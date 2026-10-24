@@ -16,7 +16,7 @@ All successful responses retain the `{data,meta}` envelope. Credentials and toke
 
 Login uses the existing public demo credentials in `web/src/api/demo.ts` and is limited to ten attempts per IP per 15 minutes. Invalid credentials return 401. Missing, expired or revoked tokens return 401. Role/owner violations return 403; inaccessible listing/plan IDs return 404. Auth responses set `Cache-Control: no-store`. `/health` and `/ready` remain public. A PostgreSQL-backed `/api` requires a bearer token even if `API_STUBS=true`; the keyless starter's memory mode remains open for its existing tests.
 
-P1 should keep the current local demo role chooser only when `VITE_DATA_MODE=demo`. In API mode, submit credentials to login, hold the returned token in session state, attach it to each API request, restore state through `/api/auth/me`, and clear it on logout or 401. The UI must not treat the local `cropconvoy.identity` value as proof of authentication. The actor IDs already sent in listing, order and trip bodies must match the logged-in account.
+The P1 UI is now connected: it keeps the local role chooser only when `VITE_DATA_MODE=demo`. In API mode it submits credentials to login, stores the bearer token for the browser session, attaches it to API requests, restores state through `/api/auth/me`, and clears it on logout or 401. The UI never treats the local `cropconvoy.identity` value as proof of API authentication. Actor IDs in listing, order and trip bodies come from the server-confirmed user.
 
 ## Authorization boundary for P3/P4
 

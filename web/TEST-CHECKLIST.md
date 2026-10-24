@@ -40,7 +40,7 @@ These are local lab measurements, not hosted field data or an INP measurement. M
 | Mobile menu | Open focus-managed drawer; Escape/close dismisses; a navigation choice closes it | Automated + phone-frame browser |
 | Workspace link | Open the current role workspace | Browser |
 | Switch demo role | Open account choices | Browser, all three roles |
-| Sign out | Clear only the demo identity and open login | Automated |
+| Sign out | Clear the demo identity or revoke the API session, then open login | Automated |
 | Search site / Ctrl or Cmd+K | Open local search | Automated shortcut + browser search |
 | Search text / result links / Enter | Filter pages/help/loaded records; show no-match feedback; navigate a result | Automated + production browser |
 | Close dialog / Escape | Dismiss dialog and restore invoking-control focus | Automated + production browser |
@@ -108,4 +108,4 @@ These are local lab measurements, not hosted field data or an INP measurement. M
 
 The browser responsive checks use real same-origin iframe viewports in qa/responsive.html, not physical phones. The in-app browser did not apply a native zoom shortcut; 200% text enlargement and narrow layouts were verified instead. Keyboard paths are covered through Testing Library and real browser Escape/focus checks. Reduced motion and tile failure are exercised through controlled component tests.
 
-Live backend extraction, real routed quotes, PostgreSQL restart persistence, multi-party confirmations, authentication, production map-provider rollout and deployment remain the assigned backend/hosting work. Mocked API failure/geometry tests do not claim those services are complete. The theme and generated media are local deliverables; no site was published.
+Demo database login, API token restoration and logout are implemented and tested with mocked browser responses; P2 separately verified the live auth endpoints against development Neon. Real routed quotes, persisted proposals, multi-party confirmations, production map-provider rollout and deployment remain unfinished. Mocked API failure/geometry tests do not claim those services are complete. The theme and generated media are local deliverables; no site was published.
