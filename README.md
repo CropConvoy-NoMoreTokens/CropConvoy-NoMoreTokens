@@ -2,7 +2,7 @@
 
 Starter for a four-person, six-hour harvest-to-buyer matching prototype. The project is structured so frontend, market/platform, logistics, and workflow work can start simultaneously.
 
-**Current state:** P2 market/extraction, P3 logistics and P4 advocate/workflow are integrated with the role-based UI. PostgreSQL persists listings, orders, trips, authoritative quotes and plans. Generation validates real routing responses, applies the weight-distance-v2 tariff, checks the farmer minimum and preserves bounded-search/fallback status. Acceptance records pending buyer/transporter confirmations, never a booking. Live road generation requires a configured approved ROUTING_BASE_URL; no default road provider or synthetic route fallback is supplied. API mode uses database-backed sessions and role/owner checks for three predefined public demo accounts; see [the auth handoff](docs/handoffs/P2-AUTH-INTEGRATION.md). Private registration and hosted deployment remain outside the prototype.
+**Current state:** P2 market/extraction, P3 logistics and P4 advocate/workflow are integrated with the role-based UI. PostgreSQL persists listings, orders, trips, authoritative quotes and plans. Generation validates real routing responses, applies the weight-distance-v2 tariff, checks the farmer minimum and preserves bounded-search/fallback status. Farmer acceptance records pending buyer/transporter confirmations. Saved history and explicit buyer/driver approvals are integrated; only both approvals plus a successful transactional availability check confirm and allocate a booking. Live road generation requires a configured approved ROUTING_BASE_URL; no default road provider or synthetic route fallback is supplied. API mode uses database-backed sessions and role/owner checks for three predefined public demo accounts; see [the auth handoff](docs/handoffs/P2-AUTH-INTEGRATION.md). Private registration and hosted deployment remain outside the prototype.
 
 ## Start locally
 
@@ -79,6 +79,8 @@ Each handoff includes a copyable task for a teammate or coding assistant. Start 
 From api/: `npm test`, `npm run build`, `npm run contracts:export`. The existing exporter includes P4 quote/plan/generation schemas. Set `P4_TEST_DATABASE_URL` to a disposable local PostgreSQL database to enable persistence/process-restart integration checks. The combined P2/P3/P4 HTTP test requires a local role with CREATE DATABASE permission; it creates and drops only its uniquely named test database and runs real modules while mocking only external model/routing HTTP responses. Also set LOGISTICS_TEST_DATABASE_URL to enable P3 database/upgrade tests.
 
 From web/: `npm test`, `npm run build`.
+
+The approval/history flow requires `003_booking_approvals.sql` through the migration runner before API restart; see [booking workflow](docs/BOOKING-WORKFLOW.md).
 
 For database setup, read [api/db/README.md](api/db/README.md) and run `npm run db:migrate` from api/ only after configuring DATABASE_URL. Migration execution is separate from server startup.
 

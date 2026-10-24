@@ -26,6 +26,8 @@ export function createDemoService(storage: Pick<Storage, 'getItem' | 'setItem'> 
   return {
     mode: 'demo',
     async readHarvestImage() { throw new ApiError('Image reading is available when connected to the Gemini API.', 503, 'IMAGE_READING_UNAVAILABLE'); },
+    async listPlans(filter) { const rows=memory.plans.filter(p=>p.listingId===filter.listingId); return result({items:rows.map(p=>({id:p.id,listingId:p.listingId,orderId:p.orderId,tripId:p.tripId,quantityKg:p.quantityKg,crop:getListing(p.listingId).crop,status:p.status,createdAt:p.createdAt,expiresAt:p.expiresAt,booking:p.booking??null,pickupAt:p.quoteSnapshot.pickupAt,deliveryAt:p.quoteSnapshot.deliveryAt,grossMinor:p.quoteSnapshot.grossMinor,transportMinor:p.quoteSnapshot.transportMinor,netMinor:p.quoteSnapshot.netMinor,legacy:true})),nextCursor:null,pendingCount:0}); },
+    async approve() { throw new ApiError('Approvals require API mode and PostgreSQL.',503,'API_REQUIRED'); },
     async extract(input: ExtractInput) {
       const text = input.text;
       const quantity = text.match(/(?:^|[^\d.\-])(\d+)\s*kg\b/i);

@@ -37,7 +37,7 @@ PostgreSQL-backed API requests require `Authorization: Bearer <token>`, includin
 
 Login returns `{token, tokenType:'Bearer', expiresAt, user:{id, username, role}}` inside the usual envelope. Role is `farmer | buyer | transporter`. Sessions last 12 hours, persist across API restarts and are revoked on logout. The database stores salted password hashes and bearer-token hashes. Auth responses use `Cache-Control: no-store`; login allows ten attempts per IP per 15 minutes in addition to the general API limit.
 
-Farmers can extract, publish/read their own listings, and generate/read/decide their own plans. Buyers can publish orders with their own actor ID and read their own orders. Transporters can publish trips with their own actor ID and read trips; the current prototype has one account per role. A mismatched publication actor returns 403. An inaccessible farmer listing/plan returns 404. New API routes fail closed until explicitly authorized. Authentication does not turn acceptance into a booking or reserve quantities.
+Farmers can extract, publish/read their own listings, and generate/read/decide their own plans. Buyers can publish orders with their own actor ID and read their own orders. Transporters can publish trips with their own actor ID and read trips; the current prototype has one account per role. A mismatched publication actor returns 403. An inaccessible farmer listing/plan returns 404. New API routes fail closed until explicitly authorized. Farmer acceptance does not confirm a booking or reserve quantities. The addressed buyer and driver must explicitly approve before a final transactional availability check can confirm it.
 
 The browser restores API identity through /api/auth/me, attaches the session token, clears it on logout/401, and uses the returned user ID in actor fields. Local `cropconvoy.identity` is only for demo mode. Public credentials and full ownership rules are documented in [P2's auth handoff](handoffs/P2-AUTH-INTEGRATION.md). `contracts/requests.http` contains role-specific login and bearer-header examples. No registration, password reset or private production identity management is implemented.
 
@@ -59,6 +59,10 @@ POST body schemas are in contracts/schemas.json. The return type below is inside
 | POST /api/orders | OrderInput | Order; 201 | P2 |
 | GET /api/trips | none | Trip[] | P3 |
 | POST /api/trips | TripInput | Trip with persisted full road geometry; 201; 503 when routing/storage is unavailable | P3 |
+| GET /api/plans | optional listingId, status, limit, cursor | Owned history page `{items,nextCursor,pendingCount}` | P4 |
+| GET /api/approvals/:id | UUID path | Role-specific owned proposal summary | P4 |
+| POST /api/plans/:id/buyer-decision | `{decision:'approve'\|'reject'}` | Addressed buyer's updated summary | P4 |
+| POST /api/plans/:id/driver-decision | `{decision:'approve'\|'reject'}` | Addressed transporter's updated summary | P4 |
 | POST /api/plans/generate | `{listingId}` | GenerationResult | P4 |
 | GET /api/plans/:id | UUID path | Plan or 404 | P4 |
 | POST /api/plans/:id/decision | `{decision:'accept'\|'reject'}` | Updated Plan; 404 for missing plan, 409 for stale/expired/conflicting decision | P4 |
@@ -106,7 +110,7 @@ GenerationResult: `{outcome, plan, alternatives, rejections, trace, searchComple
 - Hard filters: exact crop, sufficient demand, partial-fill policy, sufficient trip capacity, simple route, pickup before delivery, snap/corridor tolerances, readiness, deadline, detour, minimum net.
 - Confirm interpretation of allowsPartial at kickoff: the plan's core scope requires it enabled for candidate orders. Do not silently broaden policy based on an exact-quantity order.
 - Net = quantity × unit price − transport. Transport = base + round(quantity kg × routeCarryDistanceM / 1000 × ratePerKgKmMinor) + round(extraDistanceM / 1000 × perKmMinor) + handling. New trips and quotes require pricingVersion=weight-distance-v2; perKmMinor remains the detour rate. Carrying distance follows the original stored road route between pickup/delivery projections, excluding upstream/downstream travel.
-- Plan states: proposed → farmer_accepted_pending_confirmations or rejected. Before acceptance, check expiry and current source records against the quote. Repeated same decision returns same state; conflicting decisions return 409. No demand/capacity decrement.
+- Plan states: proposed → farmer_accepted_pending_confirmations or rejected. Before acceptance, check expiry and current source records against the quote. Repeated same decision returns same state; conflicting decisions return 409. Farmer acceptance/rejection never decrements demand/capacity. The new buyer/driver approval flow confirms and allocates only after both approve and availability is checked transactionally; see [booking workflow](BOOKING-WORKFLOW.md).
 
 
 ## P4 runtime and persistence additions (P2/P3 review required)
@@ -115,7 +119,7 @@ Service method signatures are preserved. New trip/quote payloads require the exp
 
 All `ruleOutcomes` must be true and include these canonical integrated P3 keys: `crop`, `demand`, `partialFill`, `capacity`, `simpleRoute`, `pickupBeforeDelivery`, `corridor`, `snapping`, `readiness`, `deadline`, `detourDistance`, `detourTime`. Missing outcomes fail closed. P3 remains responsible for genuine road geometry, projection/direction, corridor and snapping validation; P4 independently verifies IDs, source facts, demand, partial-fill permission, capacity, times, detour measurements and safe money math. `extraTimeS` includes operational overhead and must be at least the increase in driving duration. Additional P3 outcomes such as providerProfile/direction/extraTime must also be true when present.
 
-P4 policy: allowsPartial must be true even for an exact-quantity order. Proposal expiry is the earliest of the authoritative quote expiry, creation + 15 minutes, authoritative quote generation + 15 minutes, and pickup time. P3 defaults to a five-minute quote lifetime bounded by departure and buyer deadline. Both service and conditional SQL transitions enforce the stored quote expiry independently of the plan expiry. Quotes generated before the current evaluation began, in the future, or already expired are rejected. Workflow also compares sources captured before evaluation with sources re-read after quote lookup; changes fail closed. Acceptance compares the complete current listing/order/trip with the stored source snapshot; a changed field requires regeneration. Repeated decisions return the original terminal plan, including after expiry. Rejection checks expiry; acceptance also checks source freshness. Decisions never change source quantities.
+P4 policy: allowsPartial must be true even for an exact-quantity order. Proposal expiry is the earliest of the authoritative quote expiry, creation + 15 minutes, authoritative quote generation + 15 minutes, and pickup time. P3 defaults to a five-minute quote lifetime bounded by departure and buyer deadline. Both service and conditional SQL transitions enforce the stored quote expiry independently of the plan expiry. Quotes generated before the current evaluation began, in the future, or already expired are rejected. Workflow also compares sources captured before evaluation with sources re-read after quote lookup; changes fail closed. Acceptance compares current listing/order/trip facts with the stored source snapshot; changed terms require regeneration. The transactional approval flow permits changed demand/capacity counters only when enough remains for the whole harvest. Repeated decisions return the original terminal plan, including after expiry. Rejection checks expiry; acceptance also checks source freshness. Farmer decisions never change source quantities. Final confirmation after both counterparty approvals atomically allocates demand/capacity and closes the trip; pending proposals reserve nothing.
 
 The existing plans table suffices: `quote_snapshot` stores the full quote. The internal `review` JSONB stores `{...ReviewResult, sourceSnapshot, mode, searchComplete}`; the repository maps this into the separate public fields and validates on read. No schema migration is needed for P4. Existing starter has no stored plans to backfill. P3 owns durable logistics_quotes storage; a new generation-scoped logistics instance must share P3's persistent repository. Acceptance uses the stored plan quote even if P3's temporary quote cache has gone away.
 
@@ -159,4 +163,14 @@ Current quote schemas require pricingVersion=weight-distance-v2, ratePerKgKmMino
 
 ### Saved farmer harvests
 
-`GET /api/listings?demoFarmerId=<UUID>` returns the signed-in farmer's listings, newest first (createdAt then ID descending), in the normal data/meta envelope. Missing or invalid UUIDs return 422; a different farmer ID returns 403. The farmer workspace loads this on entry and offers Open harvest and refresh. Existing listings require no migration. The bearer session establishes the owner; the query parameter is checked against it.
+`GET /api/listings` returns the authenticated farmer's listing array, newest first (createdAt then ID descending), in the normal data/meta envelope. A supplied demoFarmerId is ignored for authenticated requests. The keyless memory stub requires a valid UUID query parameter instead. PostgreSQL responses include latestProposal when available. The farmer workspace offers Open harvest, refresh and persisted proposal history.
+
+
+
+### Farmer list ownership after auth integration
+
+Authenticated `GET /api/listings` derives the farmer ID from the server session; any supplied `demoFarmerId` is ignored. Requests without a session receive 401 and other roles receive 403. Only the keyless in-memory stub retains the required UUID query parameter. The frontend uses the signed-in profile ID for its list request. This supersedes earlier query-based ownership notes.
+
+### Three-party booking workflow
+
+See BOOKING-WORKFLOW.md for the current history/approval API, role-specific projections, expanded statuses, expiry rules and atomic allocation semantics. `booking` is optional on legacy plans and persisted under `review.booking`. Farmer acceptance remains pending; only buyer + driver approval and a successful transaction yield `confirmed`. Stored order/trip counters may be zero; creation inputs remain positive. Migration 003 and API restart are required.

@@ -6,7 +6,7 @@ import { weightDistanceTripSchema, weightDistanceQuoteSchema, listingSchema, ord
 import { calculateProceeds } from './pricing.js';
 
 export interface LogisticsRepository {
-  listTrips():Promise<WeightDistanceTrip[]>;
+  listTrips(includeClosed?:boolean):Promise<WeightDistanceTrip[]>;
   saveTrip(trip:WeightDistanceTrip):Promise<void>;
   getListing(id:string):Promise<Listing>;
   getOrder(id:string):Promise<Order>;
@@ -45,8 +45,8 @@ export function createPostgresLogisticsRepository(db:Database):LogisticsReposito
     return object(rows[0].record);
   }
   return {
-    async listTrips() {
-      const {rows}=await db.query("SELECT to_jsonb(t) AS record FROM trips t WHERE status='open' AND pricing_version='weight-distance-v2' ORDER BY departure_at, id LIMIT 101");
+    async listTrips(includeClosed=false) {
+      const {rows}=await db.query("SELECT to_jsonb(t) AS record FROM trips t WHERE ($1 OR status='open') AND pricing_version='weight-distance-v2' ORDER BY departure_at, id LIMIT 101",[includeClosed]);
       return rows.map(row=>tripFromRow(object(row.record)));
     },
     async saveTrip(t) {

@@ -10,15 +10,15 @@ export interface PlanRepository {
 }
 
 const columns = 'id, listing_id, order_id, trip_id, quantity_kg, status, quote_snapshot, review, trace, expires_at, created_at';
-function decode(row: Record<string, unknown>): Plan {
+export function decode(row: Record<string, unknown>): Plan {
   if ((row.quote_snapshot as { pricingVersion?: unknown } | null)?.pricingVersion !== 'weight-distance-v2')
     throw new ApiError(409, 'PRICING_VERSION_CHANGED', 'This proposal uses an older tariff; generate a new proposal');
   const stored = row.review as Record<string, unknown>;
-  const { sourceSnapshot, mode, searchComplete, ...review } = stored;
+  const { sourceSnapshot, mode, searchComplete, booking, ...review } = stored;
   const iso = (value: unknown) => value instanceof Date ? value.toISOString() : value;
   return planSchema.parse({ id: row.id, listingId: row.listing_id, orderId: row.order_id, tripId: row.trip_id,
     quantityKg: row.quantity_kg, status: row.status, quoteSnapshot: row.quote_snapshot, review, trace: row.trace,
-    expiresAt: iso(row.expires_at), createdAt: iso(row.created_at), sourceSnapshot, mode,
+    expiresAt: iso(row.expires_at), createdAt: iso(row.created_at), sourceSnapshot, mode, ...(booking ? { booking } : {}),
     ...(searchComplete === undefined ? {} : { searchComplete }) });
 }
 const conflict = () => new ApiError(409, 'PLAN_CONFLICT', 'Proposal expired or a conflicting decision was already recorded');

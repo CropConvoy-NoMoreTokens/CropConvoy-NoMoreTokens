@@ -61,14 +61,14 @@ export type ExtractResult = z.infer<typeof extractResultSchema>;
 export type MarketResult = z.infer<typeof marketResultSchema>;
 export type LogisticsResult = z.infer<typeof logisticsResultSchema>;
 export type ReviewResult = z.infer<typeof reviewResultSchema>;
-export type Listing = ListingInput & { id: string; status: 'open'; createdAt: string };
-export type Order = OrderInput & { id: string; status: 'open'; createdAt: string };
+export type Listing = ListingInput & { id: string; status: 'open' | 'closed' | 'booked' | 'withdrawn'; createdAt: string };
+export type Order = OrderInput & { id: string; status: 'open' | 'closed' | 'booked' | 'withdrawn'; createdAt: string };
 export type LineString = { type: 'LineString'; coordinates: [number, number][] };
-export type Trip = TripInput & { id: string; status: 'open'; createdAt: string;
+export type Trip = TripInput & { id: string; status: 'open' | 'closed' | 'booked' | 'withdrawn'; createdAt: string;
   routeGeoJSON: LineString; routeDistanceM: number; routeDurationS: number; routeProvider: string; routeProfile: string };
 export type QuoteSnapshot = z.infer<typeof quoteSnapshotSchema>;
 export type ReviewInput = { listing: Listing; quotes: QuoteSnapshot[] };
-export type PlanStatus = 'proposed' | 'farmer_accepted_pending_confirmations' | 'rejected';
+export type PlanStatus = 'proposed' | 'farmer_accepted_pending_confirmations' | 'rejected' | 'confirmed' | 'declined' | 'expired' | 'unavailable' | 'superseded';
 export type TraceEntry = { role: 'market' | 'logistics' | 'advocate' | 'workflow'; action: string; outcome: string };
 export type Plan = z.infer<typeof planSchema>;
 export type GenerationResult = z.infer<typeof generationResultSchema>;
@@ -76,11 +76,11 @@ export type ApiMode = 'stub' | 'live' | 'deterministic_fallback';
 export type ApiResponse<T> = { data: T; meta: { mode: ApiMode; persistence: 'memory' | 'postgres'; requestId: string } };
 
 // Runtime schemas mirror the existing module handoff; no runtime import from contracts/.
-export const listingSchema = listingInputSchema.extend({ id: idSchema, status: z.literal('open'), createdAt: dateSchema });
-export const orderSchema = orderInputSchema.extend({ id: idSchema, status: z.literal('open'), createdAt: dateSchema });
+export const listingSchema = listingInputSchema.extend({ id: idSchema, status: z.enum(['open', 'closed', 'booked', 'withdrawn']), createdAt: dateSchema });
+export const orderSchema = orderInputSchema.extend({ remainingKg: z.number().int().nonnegative(), id: idSchema, status: z.enum(['open', 'closed', 'booked', 'withdrawn']), createdAt: dateSchema });
 export const lineStringSchema = z.strictObject({ type: z.literal('LineString'),
   coordinates: z.array(z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)])).min(2) });
-export const tripSchema = tripInputSchema.extend({ id: idSchema, status: z.literal('open'), createdAt: dateSchema,
+export const tripSchema = tripInputSchema.extend({ availableKg: z.number().int().nonnegative(), id: idSchema, status: z.enum(['open', 'closed', 'booked', 'withdrawn']), createdAt: dateSchema,
   routeGeoJSON: lineStringSchema, routeDistanceM: distance.positive(), routeDurationS: distance.positive(),
   routeProvider: z.string().min(1), routeProfile: z.string().min(1) });
 export const quoteSnapshotSchema = z.strictObject({
@@ -101,10 +101,11 @@ export const sourceSnapshotSchema = z.strictObject({ listing: listingSchema, ord
 export const apiModeSchema = z.enum(['stub', 'live', 'deterministic_fallback']);
 export const planSchema = z.strictObject({
   id: idSchema, listingId: idSchema, orderId: idSchema, tripId: idSchema, quantityKg: quantity,
-  status: z.enum(['proposed', 'farmer_accepted_pending_confirmations', 'rejected']),
+  status: z.enum(['proposed', 'farmer_accepted_pending_confirmations', 'rejected', 'confirmed', 'declined', 'expired', 'unavailable', 'superseded']),
   quoteSnapshot: quoteSnapshotSchema, review: reviewResultSchema, trace: z.array(traceEntrySchema),
   expiresAt: dateSchema, createdAt: dateSchema,
   sourceSnapshot: sourceSnapshotSchema, mode: apiModeSchema,
+  booking: z.object({ buyer: z.enum(['pending','approved','rejected']), driver: z.enum(['pending','approved','rejected']), approvalExpiresAt: dateSchema, farmerAcceptedAt: dateSchema.optional(), buyerDecidedAt: dateSchema.optional(), driverDecidedAt: dateSchema.optional(), buyerDecidedBy: idSchema.optional(), driverDecidedBy: idSchema.optional(), confirmedAt: dateSchema.optional(), resolutionCode: z.string().optional() }).optional(),
   // Optional for proposals saved before search completeness was persisted.
   searchComplete: z.boolean().optional(),
 }).refine(plan => plan.listingId === plan.quoteSnapshot.listingId && plan.orderId === plan.quoteSnapshot.orderId &&

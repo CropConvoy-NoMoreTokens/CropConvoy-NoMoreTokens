@@ -33,6 +33,8 @@ function mockApi(stored = plan, generate: unknown = examples.empty, decision: un
     const pathname = new URL(String(url)).pathname;
     expect(new Headers(options?.headers).get('Authorization')).toBe(`Bearer ${token}`);
     if (pathname === '/api/auth/me') return response({ data: farmer, meta: examples.success.meta });
+    if (pathname === '/api/listings') return response({ data: [listing], meta: examples.success.meta });
+    if (pathname === '/api/plans') return response({ data: { items: [], nextCursor: null, pendingCount: 0 }, meta: examples.success.meta });
     if (pathname === `/api/listings/${listing.id}`) return response({ data: currentListing, meta: { ...examples.success.meta, mode: 'stub' } });
     if (pathname === '/api/plans/generate') {
       expect(JSON.parse(String(options?.body))).toEqual({ listingId: listing.id });
@@ -66,7 +68,10 @@ test('API proposal shows stored minimum, all source locations and partial-search
 test('stored proposal keeps its fallback explanation after the listing loads', async () => {
   let resolveListing!: (value: Response) => void;
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-    if (new URL(url).pathname === '/api/auth/me') return response({ data: farmer, meta: examples.success.meta });
+    const pathname = new URL(url).pathname;
+    if (pathname === '/api/auth/me') return response({ data: farmer, meta: examples.success.meta });
+    if (pathname === '/api/listings') return response({ data: [listing], meta: examples.success.meta });
+    if (pathname === '/api/plans') return response({ data: { items: [], nextCursor: null, pendingCount: 0 }, meta: examples.success.meta });
     return url.includes('/api/listings/') ? new Promise<Response>(resolve => { resolveListing = resolve; })
       : response({ data: plan, meta: examples.success.meta });
   }));
