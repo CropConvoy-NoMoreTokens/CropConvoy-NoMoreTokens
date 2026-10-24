@@ -9,12 +9,17 @@ import { reply } from './core/http.js';
 import { createMarketRepository } from './modules/market/repository.js';
 import { authenticate, authorizeRequest, login, loginInputSchema, logout, type AuthUser } from './core/auth.js';
 import { registerRoutes as marketRoutes } from './modules/market/routes.js';
-import { createLogisticsService } from './modules/logistics/service.js';
+import { createLogisticsService, type LogisticsService } from './modules/logistics/service.js';
 import { registerRoutes as logisticsRoutes } from './modules/logistics/routes.js';
-import { createWorkflowService } from './modules/workflow/service.js';
+import { createWorkflowService, type WorkflowOptions } from './modules/workflow/service.js';
 import { registerRoutes as workflowRoutes } from './modules/workflow/routes.js';
 
-export function createApp(deps: Dependencies, origins: string[]) {
+export interface AppOptions {
+  logistics?: LogisticsService;
+  logisticsForGeneration?: WorkflowOptions['logisticsForGeneration'];
+}
+
+export function createApp(deps: Dependencies, origins: string[], options: AppOptions = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.use((req, res, next) => {
@@ -67,8 +72,10 @@ export function createApp(deps: Dependencies, origins: string[]) {
     return reply(res, deps, { status: 'ready' });
   });
   const market = createMarketRepository(deps);
-  const logistics = createLogisticsService(deps);
-  const workflow = createWorkflowService(deps, market, logistics, { logisticsForGeneration: scoped => createLogisticsService(scoped) });
+  const logistics = options.logistics ?? createLogisticsService(deps);
+  const workflow = createWorkflowService(deps, market, logistics, {
+    logisticsForGeneration: options.logisticsForGeneration ?? (options.logistics ? undefined : createLogisticsService),
+  });
   const router = Router();
   marketRoutes(router, deps, market);
   logisticsRoutes(router, deps, logistics);

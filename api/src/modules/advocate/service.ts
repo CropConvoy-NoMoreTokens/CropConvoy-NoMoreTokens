@@ -14,7 +14,7 @@ export function quoteRejectionCodes(input: ReviewInput['listing'], quote: QuoteS
   if (requiredRules.some(rule => quote.ruleOutcomes[rule] !== true) || Object.values(quote.ruleOutcomes).some(value => !value)) codes.push('HARD_RULE_FAILED');
   const gross = quote.quantityKg * quote.pricePerKgMinor;
   const distanceCharge = Math.round(quote.extraDistanceM / 1000 * quote.perKmMinor);
-  const carryingCharge = Math.round(quote.quantityKg * quote.routeCarryDistanceM / 1000 * quote.ratePerKgKmMinor);
+  const carryingCharge = Math.round(quote.quantityKg * (quote.routeCarryDistanceM / 1000) * quote.ratePerKgKmMinor);
   const transport = quote.baseMinor + carryingCharge + distanceCharge + quote.handlingMinor;
   const net = gross - transport;
   if (![gross, carryingCharge, distanceCharge, transport, net].every(Number.isSafeInteger) ||
@@ -51,8 +51,7 @@ export async function reviewOptions(input: ReviewInput, deps: Dependencies, sign
         system: advocatePrompt, input: { minimumNetMinor: input.listing.minNetMinor,
           quotes: rankedQuotes(input).map(q => ({ quoteId: q.quoteId, netMinor: q.netMinor })), repair: turn > 0 },
         tools: advocateTools, signal }));
-      const call = raw as { name?: unknown; arguments?: unknown };
-      const output = advocateOutputSchema.parse(call?.name ? { tool: call.name, arguments: call.arguments } : raw);
+      const output = advocateOutputSchema.parse(raw);
       if (output.arguments.selectedQuoteId !== deterministic.selectedQuoteId) throw new Error('INVALID_SELECTION');
       if (output.arguments.requestAlternative && !deterministic.selectedQuoteId) return {
         ...deterministic, verdict: 'try_alternative', reasonCodes: [...deterministic.reasonCodes, 'ALTERNATIVE_REQUESTED'] };
