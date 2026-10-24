@@ -25,7 +25,7 @@ export function createApp(deps: Dependencies, origins: string[]) {
       status: res.statusCode, durationMs: Number(process.hrtime.bigint() - started) / 1e6 })));
     next();
   });
-  app.use(cors({ origin(origin, callback) {
+  app.use(cors({ exposedHeaders: ['X-Request-Id'], origin(origin, callback) {
     if (!origin || origins.includes(origin)) callback(null, true);
     else callback(new ApiError(403, 'ORIGIN_NOT_ALLOWED', 'This browser origin is not allowed'));
   } }));
