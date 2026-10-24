@@ -1,0 +1,36 @@
+{
+  "mobile": {
+    "url": "http://127.0.0.1:4173/",
+    "fetchTime": "2026-10-24T05:57:30.708Z",
+    "formFactor": "mobile",
+    "scores": {
+      "performance": 95,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": "1.8 s",
+      "largest-contentful-paint": "2.7 s",
+      "total-blocking-time": "20 ms",
+      "cumulative-layout-shift": "0"
+    }
+  },
+  "desktop": {
+    "url": "http://127.0.0.1:4173/",
+    "fetchTime": "2026-10-24T05:57:43.039Z",
+    "formFactor": "desktop",
+    "scores": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": "0.4 s",
+      "largest-contentful-paint": "0.7 s",
+      "total-blocking-time": "0 ms",
+      "cumulative-layout-shift": "0"
+    }
+  }
+}
