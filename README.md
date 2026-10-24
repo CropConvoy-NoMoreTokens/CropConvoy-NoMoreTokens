@@ -47,7 +47,7 @@ api/
   test/                               # P4: HTTP/integration checks
 web/
   src/api/client.ts                   # P1: shared browser API helper
-  src/App.tsx                         # P1: role-tab shell and connection check
+  src/App.tsx                         # P1: landing, login and role workspaces
 contracts/                            # P4: fixtures, generated schemas, requests
 docs/
   CONTRACTS.md                        # Team interface agreement

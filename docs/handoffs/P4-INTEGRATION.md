@@ -28,3 +28,6 @@ Validation: run npm test and npm run build in api/. Set P4_TEST_DATABASE_URL to 
 
 
 Follow-up migration fix requested by the user: scripts/migrate.ts now uses scripts/migration-connection.ts to allow at least 2 seconds per Node address attempt and 20 seconds for connection setup, preserving TLS verification and cleaning up failed connections. The hosted Neon migration command was verified successfully. P2 should account for the same cross-region connection timing when implementing shared API PostgreSQL adapters; no app.ts/dependencies.ts wiring was changed by this fix.
+
+
+UI rebase follow-up: P4 integrated the new frontend with the proposal sourceSnapshot/mode fields and an additive optional Plan.searchComplete field. New plans persist that field in the existing review JSONB; old plans remain readable with unknown completeness. No migration or shared wiring edit is needed. Frontend plan warnings/locations/minimums, fallback metadata, regeneration URLs and expiry/conflict controls are covered by full-response fixture tests. The default HTTP API still uses P2/P3 stubs; these UI changes do not turn simulated proposals into live quotes.

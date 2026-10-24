@@ -13,6 +13,7 @@ test('fixture generation persists authoritative amounts; decisions are idempoten
   const result = generationResultSchema.parse(await service.generate(f.listing.id));
   assert.equal(result.outcome, 'proposed');
   assert.equal(result.plan?.quoteSnapshot.netMinor, 1665000);
+  assert.equal(result.plan?.searchComplete, true);
   assert.equal(result.mode, 'deterministic_fallback');
   assert.equal(result.searchComplete, true);
   const original = structuredClone({ listing: f.listing, order: f.order, trip: f.trip });
@@ -101,6 +102,7 @@ test('deadline during advocate retains evaluated proposal with incomplete search
   f.deps.llm.complete = async () => new Promise(() => {});
   const result = await f.workflow().generate(f.listing.id);
   assert.equal(result.searchComplete, false); assert.equal(result.mode, 'deterministic_fallback'); assert.ok(result.plan);
+  assert.equal(result.plan.searchComplete, false);
 });
 
 test('stale listing, order, trip and expired plans give 409; unchanged rejection is repeatable', async () => {
@@ -240,4 +242,23 @@ test('deadline during later quote retrieval saves earlier evaluated snapshot as 
   const result = await f.workflow().generate(f.listing.id);
   assert.ok(result.plan); assert.equal(result.plan.quoteSnapshot.quoteId, f.quote.quoteId);
   assert.equal(result.searchComplete, false); assert.equal(result.mode, 'deterministic_fallback');
+});
+
+
+test('UI contract fixture matches the reference envelopes without production imports across service roots', async () => {
+  const read = async (path: string) => JSON.parse(await readFile(new URL(path, import.meta.url), 'utf8'));
+  const reference = await read('../../contracts/fixtures/workflow-responses.json');
+  const ui = await read('../../web/src/test/fixtures/workflow-responses.json');
+  assert.deepEqual(ui, reference);
+  for (const name of ['success', 'empty', 'incomplete']) generationResultSchema.parse(ui[name].data);
+});
+
+test('partial-search status survives plan retrieval and decisions', async () => {
+  const f = setup(); f.deps.mode = 'live'; f.deps.maxPlanMs = 100;
+  f.deps.llm.complete = async () => new Promise(() => {});
+  const service = f.workflow();
+  const generated = await service.generate(f.listing.id);
+  assert.ok(generated.plan);
+  assert.equal((await service.getPlan(generated.plan.id)).searchComplete, false);
+  assert.equal((await service.decide(generated.plan.id, 'accept')).searchComplete, false);
 });

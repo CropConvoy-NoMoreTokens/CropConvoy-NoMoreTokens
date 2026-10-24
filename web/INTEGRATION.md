@@ -64,3 +64,10 @@ Frontend Trip/QuoteSnapshot types permit null geometry/measurements only to repr
 6. Confirm map provider terms/attribution, image loading, HTTPS, error behavior and production build. Use TEST-CHECKLIST.md for the UI regression pass.
 
 Site search is local to static pages/help and records loaded into this app session. There is no unsupported server search call. The floating contact action opens local help because no team email/phone has been provided. There is no fake support form, newsletter subscription or real account registration.
+
+
+## P4 integration after the UI rebase
+
+Frontend Plan/GenerationResult types now preserve mode, sourceSnapshot and searchComplete. searchComplete is optional on stored plans for compatibility with older proposals; unknown status is shown explicitly. Proposals use stored source pins and farmer minimum, display original/modified quote geometry, and retain fallback mode after listing/retrieval races. Regenerating with no proposal removes the prior plan URL. Expired or server-conflicting decisions are disabled while refresh/regeneration remain available.
+
+The browser regression tests use a copy of P4's full synthetic response envelopes inside src/test/fixtures/workflow-responses.json. The API suite verifies that copy against the checked-in contract pack and runtime schemas. Fixtures are test-only; no production import crosses service roots. Use VITE_DATA_MODE=api in local web/.env and restart Vite to exercise the backend. The default remains the labeled interactive demo. Real provider-backed proposal generation still requires the P2/P3 integrations described in ../docs/handoffs/P4-INTEGRATION.md.
