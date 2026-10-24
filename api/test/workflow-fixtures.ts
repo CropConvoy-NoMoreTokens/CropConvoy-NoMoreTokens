@@ -31,7 +31,7 @@ export function setup() {
     clock: { now: () => new Date(now) }, mode: 'deterministic_fallback', persistence: 'memory', maxPlanMs: 1000,
     db: { async query() { throw new Error('Unexpected DB call'); }, async ping() {}, async close() {} },
     llm: { async complete(input) { const value = input.input as { quotes: Array<{ quoteId: string }> };
-      return { tool: 'review_quotes', arguments: { selectedQuoteId: value.quotes[0]?.quoteId ?? null, requestAlternative: false } }; } },
+      return { name: 'review_quotes', arguments: { selectedQuoteId: value.quotes[0]?.quoteId ?? null, requestAlternative: false } }; } },
     routing: { async route() { throw new Error('Unexpected route call'); } },
   };
   const market: MarketRepository = { async getListing() { return structuredClone(listing); },

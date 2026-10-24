@@ -76,7 +76,7 @@ Each handoff includes a copyable task for a teammate or coding assistant. Start 
 
 ## Validate
 
-From api/: `npm test`, `npm run build`, `npm run contracts:export`, then `node --import tsx src/modules/workflow/export-contracts.ts` for the P4 result schemas until P2 folds them into the existing exporter. Set `P4_TEST_DATABASE_URL` to a disposable local PostgreSQL database to enable the persistence/process-restart integration check.
+From api/: `npm test`, `npm run build`, `npm run contracts:export`. The existing exporter includes P4 quote/plan/generation schemas. Set `P4_TEST_DATABASE_URL` to a disposable local PostgreSQL database to enable persistence/process-restart integration checks. The combined P2/P4 HTTP test requires a local role with CREATE DATABASE permission; it creates and drops only its uniquely named test database and mocks provider/logistics responses.
 
 From web/: `npm run build`.
 

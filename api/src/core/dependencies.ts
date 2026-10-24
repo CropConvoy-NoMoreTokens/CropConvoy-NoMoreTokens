@@ -3,6 +3,7 @@ import type { ApiMode, Point, LineString } from './contracts.js';
 import { pending } from './errors.js';
 import { createOsrmRoutingClient } from '../modules/logistics/routing.js';
 import { createGeminiClient } from './llm.js';
+import { configurePostgresNetworking, postgresPoolConfig } from './postgres.js';
 
 export interface Database {
   query<T extends QueryResultRow = QueryResultRow>(sql: string, values?: unknown[]): Promise<{ rows: T[] }>;
@@ -28,7 +29,8 @@ export interface Dependencies {
 }
 export function createDependencies(input: { databaseUrl?: string; stub: boolean; maxPlanMs: number;
   llmApiKey?: string; llmModel?: string; llmBaseUrl?: string; routingBaseUrl?: string; routingProfile?: string }): Dependencies {
-  const pool = input.databaseUrl ? new Pool({ connectionString: input.databaseUrl, connectionTimeoutMillis: 5000 }) : null;
+  if (input.databaseUrl) configurePostgresNetworking();
+  const pool = input.databaseUrl ? new Pool(postgresPoolConfig(input.databaseUrl)) : null;
   return {
     db: {
       async query(sql, values) { if (!pool) return pending('Database connection'); return pool.query(sql, values); },
