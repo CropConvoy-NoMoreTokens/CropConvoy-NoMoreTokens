@@ -47,7 +47,7 @@ export function createDemoService(storage: Pick<Storage, 'getItem' | 'setItem'> 
       const order = memory.orders.filter(x => x.crop === listing.crop && x.remainingKg >= listing.quantityKg && x.allowsPartial).sort((a, b) => b.pricePerKgMinor - a.pricePerKgMinor)[0];
       const trip = memory.trips.find(x => x.availableKg >= listing.quantityKg);
       const trace: GenerationResult['trace'] = [{ role: 'workflow', action: 'demo_scenario', outcome: 'Illustrative price calculation only. Road, direction and timing feasibility have not been evaluated.' }];
-      const empty: GenerationResult = { outcome: 'no_feasible_plan', plan: null, alternatives: [], rejections: [], trace, searchComplete: false };
+      const empty: GenerationResult = { outcome: 'no_feasible_plan', plan: null, alternatives: [], rejections: [], trace, searchComplete: false, mode: 'demo' };
       if (!order || !trip) return result(empty);
       // Supplied fixture's Rs. 950 transport example, never presented as a road-validated quote.
       const transportMinor = 95000;
@@ -55,7 +55,7 @@ export function createDemoService(storage: Pick<Storage, 'getItem' | 'setItem'> 
       if (!Number.isSafeInteger(grossMinor) || grossMinor - transportMinor < listing.minNetMinor) { trace.push({ role: 'advocate', action: 'sample_minimum_check', outcome: 'The sample proceeds do not meet the farmer minimum.' }); return result(empty); }
       const createdAt = new Date().toISOString();
       const quote: QuoteSnapshot = { routeCarryDistanceM: null, shipmentChargeMinor: null, detourChargeMinor: null, expiresAt: new Date(Date.now()+300000).toISOString(), quoteId: uuid(), listingId, orderId: order.id, tripId: trip.id, quantityKg: listing.quantityKg, pricePerKgMinor: order.pricePerKgMinor, baseMinor: 35000, perKmMinor: 10000, ratePerKgKmMinor: 20, pricingVersion: 'weight-distance-v2', handlingMinor: 0, grossMinor, transportMinor, netMinor: grossMinor - transportMinor, baseGeometry: null, modifiedGeometry: null, baseDistanceM: null, modifiedDistanceM: null, extraDistanceM: null, baseDurationS: null, modifiedDurationS: null, extraTimeS: null, pickupAt: listing.readyAt, deliveryAt: order.deadlineAt, generatedAt: createdAt, ruleOutcomes: { sampleMinimumMet: true, roadValidationComplete: false } };
-      const plan: Plan = { id: uuid(), listingId, orderId: order.id, tripId: trip.id, quantityKg: listing.quantityKg, status: 'proposed', quoteSnapshot: quote, review: { verdict: 'recommend', selectedQuoteId: quote.quoteId, reasonCodes: ['DEMO_SCENARIO', 'ROUTE_PENDING'], explanation: 'This sample estimate lets you explore the workflow. It is not a shipment offer or a validated transport quote.' }, trace, expiresAt: new Date(Date.now() + 30 * 60000).toISOString(), createdAt };
+      const plan: Plan = { mode: 'demo', searchComplete: false, sourceSnapshot: structuredClone({ listing, order, trip }), id: uuid(), listingId, orderId: order.id, tripId: trip.id, quantityKg: listing.quantityKg, status: 'proposed', quoteSnapshot: quote, review: { verdict: 'recommend', selectedQuoteId: quote.quoteId, reasonCodes: ['DEMO_SCENARIO', 'ROUTE_PENDING'], explanation: 'This sample estimate lets you explore the workflow. It is not a shipment offer or a validated transport quote.' }, trace, expiresAt: quote.expiresAt, createdAt };
       memory.plans.push(plan); save();
       return result({ ...empty, outcome: 'proposed', plan });
     },
@@ -65,7 +65,7 @@ export function createDemoService(storage: Pick<Storage, 'getItem' | 'setItem'> 
       const target = decision === 'accept' ? 'farmer_accepted_pending_confirmations' : 'rejected';
       if (plan.status === target) return result(plan);
       if (plan.status !== 'proposed') throw new ApiError('This proposal already has a different decision.', 409, 'CONFLICT');
-      if (Date.parse(plan.expiresAt) < Date.now()) throw new ApiError('This proposal has expired. Generate a new one.', 409, 'STALE_PLAN');
+      if (Date.parse(plan.expiresAt) <= Date.now()) throw new ApiError('This proposal has expired. Generate a new one.', 409, 'STALE_PLAN');
       plan.status = target; save(); return result(plan);
     },
   };

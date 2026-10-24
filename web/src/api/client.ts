@@ -1,4 +1,5 @@
 import type { Result } from './types';
+import { expireApiToken, getApiToken } from './authSession';
 
 export class ApiError extends Error {
   constructor(
@@ -33,6 +34,9 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   const method = options.method || 'GET';
   const headers = new Headers(options.headers);
   if (options.body) headers.set('Content-Type', 'application/json');
+
+  const token = path === '/api/auth/login' ? null : getApiToken();
+  if (token && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
 
   let bodyForLog: unknown;
   if (options.body && typeof options.body === 'string') {
@@ -76,6 +80,9 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   const duration = Math.round(performance.now() - started);
   const requestId = response.headers.get('X-Request-Id') ?? undefined;
+
+  if (response.status === 401 && token) expireApiToken(token);
+
   let payload: any;
   try {
     payload = await response.json();

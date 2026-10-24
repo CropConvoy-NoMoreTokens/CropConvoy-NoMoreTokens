@@ -1,3 +1,5 @@
+export type ApiMode = 'stub' | 'live' | 'deterministic_fallback';
+export type DataMode = ApiMode | 'demo';
 export type Role = 'farmer' | 'buyer' | 'transporter';
 export type Crop = 'tomato' | 'potato' | 'carrot';
 export type Point = { lat: number; lng: number };
@@ -13,9 +15,9 @@ export type ExtractInput = { text: string; localTimeContext: { now: string; time
 export type ExtractResult = { draft: { crop: Crop | null; quantityKg: number | null; locationText: string | null; readyAt: string | null; minNetMinor: number | null }; missingFields: string[]; questions: string[] };
 export type QuoteSnapshot = { ratePerKgKmMinor: number; pricingVersion: 'weight-distance-v2'; routeCarryDistanceM: number | null; shipmentChargeMinor: number | null; detourChargeMinor: number | null; expiresAt: string; quoteId: string; listingId: string; orderId: string; tripId: string; quantityKg: number; pricePerKgMinor: number; baseMinor: number; perKmMinor: number; handlingMinor: number; grossMinor: number; transportMinor: number; netMinor: number; baseGeometry: LineString | null; modifiedGeometry: LineString | null; baseDistanceM: number | null; modifiedDistanceM: number | null; extraDistanceM: number | null; baseDurationS: number | null; modifiedDurationS: number | null; extraTimeS: number | null; pickupAt: string; deliveryAt: string; generatedAt: string; ruleOutcomes: Record<string, boolean> };
 export type TraceEntry = { role: 'market' | 'logistics' | 'advocate' | 'workflow'; action: string; outcome: string };
-export type Plan = { id: string; listingId: string; orderId: string; tripId: string; quantityKg: number; status: 'proposed' | 'farmer_accepted_pending_confirmations' | 'rejected'; quoteSnapshot: QuoteSnapshot; review: { verdict: 'recommend' | 'try_alternative' | 'no_feasible_plan'; selectedQuoteId: string | null; reasonCodes: string[]; explanation: string }; trace: TraceEntry[]; expiresAt: string; createdAt: string };
-export type GenerationResult = { outcome: 'proposed' | 'no_feasible_plan'; plan: Plan | null; alternatives: QuoteSnapshot[]; rejections: Array<{ orderId: string; tripId: string; codes: string[] }>; trace: TraceEntry[]; searchComplete: boolean };
-export type Meta = { mode: 'demo' | 'stub' | 'live' | 'deterministic_fallback'; persistence: 'session' | 'memory' | 'postgres'; requestId: string };
+export type Plan = { id: string; listingId: string; orderId: string; tripId: string; quantityKg: number; status: 'proposed' | 'farmer_accepted_pending_confirmations' | 'rejected'; quoteSnapshot: QuoteSnapshot; review: { verdict: 'recommend' | 'try_alternative' | 'no_feasible_plan'; selectedQuoteId: string | null; reasonCodes: string[]; explanation: string }; trace: TraceEntry[]; expiresAt: string; createdAt: string; sourceSnapshot?: { listing: Listing; order: Order; trip: Trip }; mode?: DataMode; searchComplete?: boolean };
+export type GenerationResult = { outcome: 'proposed' | 'no_feasible_plan'; plan: Plan | null; alternatives: QuoteSnapshot[]; rejections: Array<{ orderId: string; tripId: string; codes: string[] }>; trace: TraceEntry[]; searchComplete: boolean; mode?: DataMode };
+export type Meta = { mode: DataMode; persistence: 'session' | 'memory' | 'postgres'; requestId: string };
 export type Result<T> = { data: T; meta: Meta };
 export interface CropConvoyService {
   mode: 'demo' | 'api';

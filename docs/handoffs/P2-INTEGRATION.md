@@ -1,6 +1,8 @@
 # P2 integration handoff
 
-P2 owns shared API wiring, environment, migrations, market, and the Gemini adapter. P1, P3, and P4 can integrate through the existing exported interfaces; P2 did not edit their modules or core/contracts.ts.
+Demo database login and API authorization were added later on `feat/demo-auth`; see [P2-AUTH-INTEGRATION.md](P2-AUTH-INTEGRATION.md). P1's API-mode login and bearer headers are now integrated on the same branch.
+
+P2 owns shared API wiring, environment, migrations, market, and the Gemini adapter. The P1 UI now calls the shared auth interface in API mode. P3/P4 modules and core/contracts.ts remain under their owners.
 
 ## Working local API
 
@@ -20,3 +22,8 @@ P2 owns shared API wiring, environment, migrations, market, and the Gemini adapt
 - Contract changes belong to P4 and require a quick agreement with affected owners. P2 can rerun npm run contracts:export after agreed changes.
 
 No route provider or proxy topology is verified yet. Keep Express trust proxy at its default until the hosting topology is checked. Trip registration and plan generation remain P3/P4 stubs. Seed data awaits a real tested corridor from P3.
+
+
+## P4 integration follow-up
+
+P4 now consumes the exported marketUsedFallback helper and the Gemini adapter's existing `{name, arguments}` response format. Workflow routes use res.locals.responseMode. Thin shared app wiring supplies request-scoped logistics, the main contract exporter includes P4 result schemas, and API/migration pools share the cross-region PostgreSQL connection configuration. P2 market business logic and P3 module implementation remain unchanged. See P4-INTEGRATION.md for automated HTTP/process-restart coverage and the remaining real-logistics requirement.

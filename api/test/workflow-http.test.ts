@@ -11,7 +11,7 @@ test('workflow HTTP generation, retrieval, fallback envelopes and 409 decisions 
   const f = setup(); f.deps.mode = 'live';
   f.deps.llm.complete = async () => { throw new Error('test model outage'); };
   const app = express(); app.use(express.json());
-  app.use((_req, res, next) => { res.locals.requestId = 'synthetic-test-request'; next(); });
+  app.use((_req, res, next) => { res.locals.requestId = 'synthetic-test-request'; res.locals.responseMode = 'live'; next(); });
   const router = Router(); registerRoutes(router, f.deps, f.workflow()); app.use(router);
   const errors: ErrorRequestHandler = (error, _req, res, _next) => {
     if (error instanceof ApiError) { res.status(error.status).json({ error: { code: error.code, message: error.message } }); return; }

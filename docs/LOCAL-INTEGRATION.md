@@ -13,7 +13,7 @@ No remote branch was changed by the integration work.
 - Matched logistics hard-rule names with Advocate requirements, compared both price components, propagated fallback/search completeness and bounded plan expiry by quote expiry.
 - Avoided counting cheap proximity/capacity rejections against the six routed-combination limit.
 - Added migration 002 for tariff/quote storage and made the migration runner execute unapplied SQL files in order.
-- Kept demo and API modes separate. Login remains a public demo role selector, not secure authentication.
+- Kept demo and API modes separate. API mode now uses database-backed demo login and role/owner checks; the predefined credentials are public and are not production identities.
 
 ## Run locally
 
@@ -37,7 +37,7 @@ LLM_MODEL=<team model ID>
 No production routing URL or credentials are committed. Without LLM credentials, extraction asks for manual completion and market/logistics/advocate use explicitly labelled deterministic fallback. Routing/database failures never produce demo-success substitutes.
 
 From api/, run npm run db:migrate, then npm run dev.
-The migration runner applies 001 and 002 once using its ledger/transaction.
+The migration runner applies `001_initial.sql`, `002_demo_auth.sql`, and `002_weight_distance_logistics.sql` once each using its filename ledger and transaction.
 If the older standalone hybrid-v1 SQL was already applied to your database, review the upgrade-hybrid-v1.sql handoff and migration ledger first rather than blindly applying the fresh 002.
 
 Create web/.env.local with:
@@ -58,7 +58,7 @@ Never put model/database secrets in frontend variables.
 - Browser acceptance stored farmer_accepted_pending_confirmations, not a booking.
 - API restart preserved saved listing, quote and accepted plan.
 - External road routing was real; model calls were deterministic fallback because this local test intentionally supplied no LLM key.
-- Hosted Railway/Vercel integration and live model behavior are not verified by these results.
+- Hosted Render/Vercel integration and live model behavior are not verified by these results.
 - Browser verification loaded a saved API-seeded harvest; ready-date manual entry in the browser automation was inconclusive. Existing UI form/validation tests pass.
 
 ## Repeatable tests
@@ -70,7 +70,21 @@ npm run build
 npm run contracts:export
 ```
 For dedicated test databases, set LOGISTICS_TEST_DATABASE_URL and P4_TEST_DATABASE_URL before npm test.
-Those opt-in tests create/drop only randomly named test schemas. Never use an unreviewed production database for test writes.
+Those opt-in tests create/drop their own randomly named test schemas or local databases. The process-restart suite requires a local role with CREATE DATABASE permission. Never use an unreviewed production database for test writes.
 
 From web/: npm test; npm run build.
 The local integrated-http test uses actual services and PostgreSQL with explicitly synthetic routing and unavailable model adapters; the separate browser smoke used a real road provider.
+
+
+## Latest P3/P4 rebase integration
+
+Conflict resolutions retain P3 routing configuration, readiness/migration checks and versioned fare fields together with P2/P4 injection, PostgreSQL/TLS settings and fallback reporting. The advocate consumes the existing normalized name/arguments tool response directly. Proposal UI keeps both the new charge breakdown and the stored source minimum/pins. Quote expiry is enforced in the UI, service and conditional SQL update. Model comparison prose is excluded from stored traces.
+
+The combined test now runs real P2/P3/P4 modules and the actual migration CLI twice (fresh apply and ledger idempotency), restarts API processes, and checks positive carrying charges, saved quote lookup, stale rates, five-minute expiry, logistics-only model fallback, deadline partial quotes, NoRoute and routing outages. External HTTP replies are synthetic. The separately configured live Gemini logistics/advocate protocol smoke passed on explicitly synthetic in-memory routing inputs and created no database records. The configured database already has migration 002 and its rate/version/quote schema. After ROUTING_BASE_URL was configured, a fresh live-provider check passed against a disposable local database with real OSRM/Gemini calls and persisted pending acceptance after restarting the API service.
+
+
+Repeat the current live-provider check with `P4_TEST_DATABASE_URL=postgresql://... npm run api:integration-check` from api/. It creates/migrates/removes only a generated local database; it never writes the configured hosted DATABASE_URL. Actual routing and model calls are bounded. The live result was mode=live/searchComplete=true, 93,258.7 m original route, LKR 595.63 transport and LKR 17,004.37 estimated proceeds for the synthetic 80 kg sale. This is a tested integration example, not a shipment offer, verified heavy-truck route or production SLA.
+
+## Authentication rebase
+
+The latest rebase retains the session middleware, auth readiness tables and server-confirmed UI identity alongside scoped logistics/workflow wiring. HTTP integration suites and the provider check now sign in as each role and reuse sessions after restarting the API. Fixed business clocks remain deterministic; isolated test session expiry is set against PostgreSQL time. Browser workflow tests restore the farmer through /api/auth/me and verify bearer headers. Contract requests include named role logins. No tests, builds, migrations or provider checks were run during this rebase; the results above describe earlier verification.

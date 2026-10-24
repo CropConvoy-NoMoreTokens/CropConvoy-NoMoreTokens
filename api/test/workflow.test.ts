@@ -13,6 +13,7 @@ test('fixture generation persists authoritative amounts; decisions are idempoten
   const result = generationResultSchema.parse(await service.generate(f.listing.id));
   assert.equal(result.outcome, 'proposed');
   assert.equal(result.plan?.quoteSnapshot.netMinor, 1665000);
+  assert.equal(result.plan?.searchComplete, true);
   assert.equal(result.mode, 'deterministic_fallback');
   assert.equal(result.searchComplete, true);
   const original = structuredClone({ listing: f.listing, order: f.order, trip: f.trip });
@@ -64,11 +65,11 @@ test('model unknown IDs and lower-net choices repair once then use code-selected
   const lower = { ...f.quote, quoteId: randomUUID(), netMinor: f.quote.netMinor - 100, transportMinor: f.quote.transportMinor + 100,
     handlingMinor: 100 };
   let calls = 0;
-  f.deps.llm.complete = async () => { calls++; return { tool: 'review_quotes', arguments: { selectedQuoteId: lower.quoteId, requestAlternative: false } }; };
+  f.deps.llm.complete = async () => { calls++; return { name: 'review_quotes', arguments: { selectedQuoteId: lower.quoteId, requestAlternative: false } }; };
   const review = await reviewOptions({ listing: f.listing, quotes: [lower, f.quote] }, f.deps, new AbortController().signal);
   assert.equal(calls, 2); assert.equal(review.selectedQuoteId, f.quote.quoteId); assert.ok(review.reasonCodes.includes('MODEL_FALLBACK'));
   calls = 0;
-  f.deps.llm.complete = async () => { calls++; return { tool: 'review_quotes', arguments: { selectedQuoteId: randomUUID(), requestAlternative: false } }; };
+  f.deps.llm.complete = async () => { calls++; return { name: 'review_quotes', arguments: { selectedQuoteId: randomUUID(), requestAlternative: false } }; };
   const result = await f.workflow().generate(f.listing.id);
   assert.equal(calls, 2); assert.equal(result.plan?.quoteSnapshot.quoteId, f.quote.quoteId);
   assert.equal(result.mode, 'deterministic_fallback'); assert.equal(result.plan?.mode, result.mode);
@@ -101,6 +102,7 @@ test('deadline during advocate retains evaluated proposal with incomplete search
   f.deps.llm.complete = async () => new Promise(() => {});
   const result = await f.workflow().generate(f.listing.id);
   assert.equal(result.searchComplete, false); assert.equal(result.mode, 'deterministic_fallback'); assert.ok(result.plan);
+  assert.equal(result.plan.searchComplete, false);
 });
 
 test('stale listing, order, trip and expired plans give 409; unchanged rejection is repeatable', async () => {
@@ -240,4 +242,55 @@ test('deadline during later quote retrieval saves earlier evaluated snapshot as 
   const result = await f.workflow().generate(f.listing.id);
   assert.ok(result.plan); assert.equal(result.plan.quoteSnapshot.quoteId, f.quote.quoteId);
   assert.equal(result.searchComplete, false); assert.equal(result.mode, 'deterministic_fallback');
+});
+
+
+test('UI contract fixture matches the reference envelopes without production imports across service roots', async () => {
+  const read = async (path: string) => JSON.parse(await readFile(new URL(path, import.meta.url), 'utf8'));
+  const reference = await read('../../contracts/fixtures/workflow-responses.json');
+  const ui = await read('../../web/src/test/fixtures/workflow-responses.json');
+  assert.deepEqual(ui, reference);
+  for (const name of ['success', 'empty', 'incomplete']) generationResultSchema.parse(ui[name].data);
+});
+
+test('partial-search status survives plan retrieval and decisions', async () => {
+  const f = setup(); f.deps.mode = 'live'; f.deps.maxPlanMs = 100;
+  f.deps.llm.complete = async () => new Promise(() => {});
+  const service = f.workflow();
+  const generated = await service.generate(f.listing.id);
+  assert.ok(generated.plan);
+  assert.equal((await service.getPlan(generated.plan.id)).searchComplete, false);
+  assert.equal((await service.decide(generated.plan.id, 'accept')).searchComplete, false);
+});
+
+test('advocate recomputes weight-distance charges and rejects component tampering', () => {
+  const f = setup();
+  Object.assign(f.quote, { ratePerKgKmMinor: 20, routeCarryDistanceM: 30000,
+    shipmentChargeMinor: 48000, transportMinor: 143000, netMinor: 1617000 });
+  assert.deepEqual(quoteRejectionCodes(f.listing, f.quote), []);
+  f.quote.shipmentChargeMinor++;
+  assert.ok(quoteRejectionCodes(f.listing, f.quote).includes('INVALID_MONEY'));
+  f.quote.shipmentChargeMinor--;
+  f.quote.detourChargeMinor++;
+  assert.ok(quoteRejectionCodes(f.listing, f.quote).includes('INVALID_MONEY'));
+});
+
+test('expired authoritative quotes cannot become proposed plans', async () => {
+  const f = setup(); f.quote.expiresAt = f.deps.clock.now().toISOString();
+  const result = await f.workflow().generate(f.listing.id);
+  assert.equal(result.plan, null);
+  assert.ok(result.rejections.some(rejection => rejection.codes.includes('EXPIRED_QUOTE')));
+});
+
+test('cumulative logistics diagnostics are deduplicated and model prose never enters traces', async () => {
+  const f = setup(); f.deps.mode = 'live';
+  f.options.findMarket = async () => ({ ...results.market, candidateOrderIds: [randomUUID(), randomUUID(), f.order.id] });
+  f.logistics.evaluate = async input => input.candidateOrderIds.includes(f.order.id)
+    ? structuredClone(results.logistics) : { options: [], rejections: [] };
+  Object.assign(f.logistics, { getRunDiagnostics: () => ({ mode: 'live', searchComplete: true,
+    routedCombinations: 1, trace: [{ role: 'logistics', action: 'agent_comparison', outcome: 'PRIVATE_MODEL_DETAIL '.repeat(50) }] }) });
+  const result = await f.workflow().generate(f.listing.id);
+  assert.ok(result.plan);
+  assert.equal(result.trace.filter(entry => entry.action === 'agent_comparison').length, 1);
+  assert.ok(result.trace.every(entry => entry.outcome.length <= 500 && !entry.outcome.includes('PRIVATE_MODEL_DETAIL')));
 });

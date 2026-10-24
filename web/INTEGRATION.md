@@ -25,6 +25,7 @@ UI calls CropConvoyService from src/api/types.ts. src/api/service.ts selects the
 
 | UI action | API request |
 |---|---|
+| API-mode sign in / restore / sign out | POST /api/auth/login; GET /api/auth/me; POST /api/auth/logout |
 | Review description | POST /api/harvest/extract |
 | Publish / reload harvest | POST /api/listings; GET /api/listings/:id |
 | List / save buyer order | GET /api/orders; POST /api/orders |
@@ -35,13 +36,15 @@ UI calls CropConvoyService from src/api/types.ts. src/api/service.ts selects the
 
 Successful responses use {data,meta}. ApiError preserves status/code/fields/requestId. Inputs and field paths match the backend, including nested pickup.lat, delivery.lng and start/end coordinates. Validation errors appear beside fields and in a summary. Conflicts (409) remain errors with regeneration available. Dependency/network/timeout failures keep entered values. Meta stub/fallback state is shown; searchComplete=false never becomes a claim of a completed no-match search.
 
+In API mode the login form submits the public demo credentials to the backend. The bearer token is kept in `cropconvoy.apiToken` sessionStorage and attached to API requests; `/api/auth/me` restores the server-confirmed identity after refresh. A 401 clears the token and returns the user to login. Sign out calls `/api/auth/logout` and clears local state even if the network fails. `cropconvoy.identity` is used only in demo mode and is never treated as API authorization. API mode uses the server's user ID for actor fields. This is prototype access using publicly displayed credentials, not private account security.
+
 ## Units and dates
 
 Display prices in LKR; convert decimal rupee strings to integer minor units without floating-point multiplication. 220 rupees/kg becomes 22000. Whole kg and safe bounds are checked. Trip inputs display maximum detour in km/minutes and convert to meters/seconds. All datetime-local fields explicitly mean Asia/Colombo; conversion uses +05:30 and checks against normalized Colombo date parts, independently of browser timezone. API timestamps use UTC ISO Z.
 
 ## Demo behavior
 
-Public accounts: farmer / FarmerDemo123!, buyer / BuyerDemo123!, transporter / TransportDemo123!. This is a role chooser with a password UI, not authorization. Only {role,username} is stored in cropconvoy.identity sessionStorage; passwords/tokens are never stored. Route guards direct visitors to the matching demo login.
+Public accounts: farmer / FarmerDemo123!, buyer / BuyerDemo123!, transporter / TransportDemo123!. In demo mode this is a local role chooser, not authorization. Only {role,username} is stored in cropconvoy.identity sessionStorage; no password or token is stored in demo mode. Route guards direct visitors to the matching demo login.
 
 cropconvoy.demo.v1 holds records in sessionStorage; if storage is blocked the current page uses memory. The dataset begins with one synthetic tomato order and one trip. All records are shared across demo roles in the same tab, so a buyer/trip added before switching to farmer can be explored. Closing the tab ends the session under normal browser behavior; browser session restoration can retain sessionStorage.
 
@@ -53,11 +56,20 @@ Frontend Trip/QuoteSnapshot types permit null geometry/measurements only to repr
 
 ## Backend-ready switch checklist
 
-1. P2/P3/P4 complete their actual integrations and persistence. Confirm the existing endpoint/envelope/field agreement, and provide success, empty, stale and dependency examples.
+1. P3 routing/trip/quote persistence is integrated; configure and verify the approved road provider; P2 market/Gemini and P4 workflow/persistence are integrated. Confirm the existing endpoint/envelope/field agreement, and provide success, empty, stale and dependency examples.
 2. Set VITE_DATA_MODE=api and VITE_API_BASE_URL to the actual API address. Allow this frontend origin in API CORS.
 3. Verify extraction → review → confirmed publication → generation → stored snapshot → decision. Refresh both listing and proposal URLs.
 4. Verify saved order/trip data survives API restart, route geometry is real, and snapshot money/date units match.
-5. Preserve pending buyer/transporter confirmations after acceptance. No frontend actor selection is real authorization.
+5. Preserve pending buyer/transporter confirmations after acceptance. API-mode authorization comes from the backend session; the browser-supplied actor ID is not authority.
 6. Confirm map provider terms/attribution, image loading, HTTPS, error behavior and production build. Use TEST-CHECKLIST.md for the UI regression pass.
 
 Site search is local to static pages/help and records loaded into this app session. There is no unsupported server search call. The floating contact action opens local help because no team email/phone has been provided. There is no fake support form, newsletter subscription or real account registration.
+
+
+## P4 integration after the UI rebase
+
+Frontend Plan/GenerationResult types now preserve mode, sourceSnapshot and searchComplete. searchComplete is optional on stored plans for compatibility with older proposals; unknown status is shown explicitly. Proposals use stored source pins and farmer minimum, display original/modified quote geometry, and retain fallback mode after listing/retrieval races. Regenerating with no proposal removes the prior plan URL. Expired or server-conflicting decisions are disabled while refresh/regeneration remain available.
+
+The browser regression tests use a copy of P4's full synthetic response envelopes inside src/test/fixtures/workflow-responses.json. The API suite verifies that copy against the checked-in contract pack and runtime schemas. Fixtures are test-only; no production import crosses service roots. Use VITE_DATA_MODE=api in local web/.env and restart Vite to exercise the backend. The default remains the labeled interactive demo. Real road-backed proposal generation requires the provider/migration configuration described in ../docs/handoffs/P4-INTEGRATION.md.
+
+The proposal fare panel reads the versioned carrying/detour components from the stored quote, keeps the stored source minimum/pins, and uses the earlier of quote/plan expiry to block decisions. Demo results remain explicitly simulated with unknown route components left null; old trip rates are not converted to kg-km rates.

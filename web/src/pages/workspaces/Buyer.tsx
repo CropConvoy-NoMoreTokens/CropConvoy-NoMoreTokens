@@ -12,7 +12,7 @@ import { LocationPicker } from '../../components/LocationPicker';
 import { ModeNotice } from '../Workspace';
 const empty = { crop: '', quantity: '', price: '', deadline: '' };
 export default function Buyer() {
-  const { service, notify, remember } = useApp();
+  const { service, notify, remember, identity } = useApp();
   const [params] = useSearchParams();
   const [form, setForm] = useState(empty);
   const [delivery, setDelivery] = useState<Point>({ lat: 7.2906, lng: 80.6337 });
@@ -35,7 +35,7 @@ export default function Buyer() {
   function sample() { setForm({ crop: 'tomato', quantity: '100', price: '220', deadline: tomorrowAt(20) }); setAllowsPartial(true); setErrors({}); setSaved(null); notify('Sample order filled. Confirm your delivery pin before saving.'); }
   async function submit(event: FormEvent) {
     event.preventDefault(); if (locked.current || saved) return; setError(undefined); setSaved(null);
-    const result = orderSchema.safeParse({ demoBuyerId: DEMO_IDS.buyer, crop: form.crop, remainingKg: form.quantity ? Number(form.quantity) : NaN, pricePerKgMinor: rupeesToMinor(form.price), delivery, deadlineAt: colomboToUtc(form.deadline), allowsPartial });
+    const result = orderSchema.safeParse({ demoBuyerId: identity?.id ?? DEMO_IDS.buyer, crop: form.crop, remainingKg: form.quantity ? Number(form.quantity) : NaN, pricePerKgMinor: rupeesToMinor(form.price), delivery, deadlineAt: colomboToUtc(form.deadline), allowsPartial });
     const problems = result.success ? {} : validationErrors(result.error);
     if (!pinConfirmed) problems.deliveryConfirmation = 'Confirm your delivery pin before saving.';
     setErrors(problems); if (!result.success || !pinConfirmed) return;

@@ -1,30 +1,27 @@
-# P4 integration handoff
+# P2/P4 integration handoff
 
-Implemented in branch feat/p4-persisted-advocate-workflow. This file is a concrete request to the other owners; it does not imply they have approved or implemented these changes. No external messages were sent.
+Current branch: feat/p4-persisted-advocate-workflow, rebased on dev with P2 market/platform work. Integration changes preserve the exported module interfaces; no P2 market business implementation or P3 logistics module was rewritten. No external owner messages were sent.
 
-P2:
+## Integrated
 
-- Keep app.ts, dependencies, migration and packages under your ownership. P4 needs no additional dependency or migration: it uses the initial plans table and injected Database.
-- Once your market repositories and P3 are real, set persistence=postgres only when all repositories are durable. Wire `createWorkflowService(deps, market, logistics, { logisticsForGeneration: scopedDeps => createLogisticsService(scopedDeps) })`. If P3 uses a separate repository factory, pass the same durable repository into both logistics instances. Never capture the unscoped deps in external work.
-- Extend scripts/export-contracts.ts to include listingSchema, orderSchema, tripSchema, quoteSnapshotSchema, planSchema and generationResultSchema. P4 supplies a supplemental exporter until that owner change lands.
-- Normalize advocate model output to the tool-call object in docs/CONTRACTS.md. No raw provider reasoning or credentials belong in results or traces.
-- Current Database/MarketRepository/LogisticsService read methods lack cancellation. Add signal-aware adapters or server-side query timeouts. P4 already bounds response time using abort races, but a late insert can persist after the response deadline.
-- Backend hosting is Render, with api as service root, Node 24, npm ci && npm run build, npm start, and same-region Render Postgres. See DEPLOYMENT.md.
+- Advocate validates P2's normalized `{name:'review_quotes', arguments:{selectedQuoteId,requestAlternative}}` response from the real Gemini adapter. The adapter sends full Zod schemas through parametersJsonSchema to preserve UUID/null/strict-object definitions. Unknown tools/IDs or lower-net choices still fail closed with at most one repair.
+- Workflow uses P2's exported marketUsedFallback helper and preserves fallback in its observable trace, generation mode and persisted plan. Route handlers set res.locals.responseMode, matching P2's shared reply helper.
+- app.ts supplies request-scoped logistics dependencies to the existing P3 factory. Optional logistics/factory injection supports integration tests; production still uses P3's exported service. Custom unbounded test wiring fails closed.
+- P2 listing/order and P4 plan repositories use the injected PostgreSQL adapter. The shared API/migration connection configuration fixes cross-region address timeouts while retaining TLS verification. API pooling retains normal concurrency.
+- The existing contracts:export script now includes source, quote, plan and generation schemas. The old supplemental exporter remains compatible but is not required.
+- P1's UI already supports full quote snapshots, source pins/minimums, fallback metadata, incomplete-search warnings, expiry/conflict handling and pending-confirmation language. Production services do not import the reference pack.
+- The latest dev authentication is preserved: PostgreSQL-backed routes require role/owner-checked bearer sessions, source actor IDs come from server-confirmed identities, and auth tables remain part of readiness. HTTP/process-restart tests and the provider smoke now authenticate all three roles and reuse sessions after restart; browser workflow tests restore API identity before loading a plan. Request examples and the contract agreement describe the same boundary. Tests/builds were not run for this rebase, as requested.
 
-P3:
+## P3 integration complete
 
-- getQuote currently has no backing store in the starter. Implement authoritative lookup and shared persistent quote/trip storage before live generation; send any quote-table migration to P2.
-- Confirm canonical ruleOutcomes keys in CONTRACTS.md. P4 fails closed if any required key is missing/false; no claim is made that these new keys have already been agreed.
-- All generation model/routing calls must use injected scoped dependencies and the evaluate AbortSignal. Preserve source IDs, full base/modified road geometry and safe integer amounts. extraTimeS includes operational overhead.
-- Two batches share six routing calls, two concurrent routes, and two total logistics model turns. Persist each valid quote before returning its summary. No routes are fabricated during provider outage.
+P3 routing/trip/quote repositories and diagnostics are now integrated through existing exports. Shared contracts and frontend fields require weight-distance-v2. The combined application preserves canonical hard rules, both monetary components, authoritative quote expiry and fallback/completeness diagnostics. Full model explanation prose is excluded from stored traces. Deadline handling gives P3 bounded time to return already saved partial quotes, followed by P4 snapshot retrieval/persistence; no new model/routing work starts after the search deadline.
 
-P1:
+The scoped wrapper still enforces six total routing calls, two concurrent routes, two model turns per role, one alternative batch and a maximum 45-second overall response deadline. Both missing providers and provider outages are explicit failures/incomplete results, never fabricated geometry. Migrations 001/002 are required; old tariffs are excluded and never reinterpreted.
 
-- Synthetic full envelopes are in contracts/fixtures/workflow-responses.json. Use plan.quoteSnapshot for fare/gross/net and pending-confirmation language after acceptance.
-- Empty complete searches and incomplete/deadline results are distinct. Workflow envelope mode now follows generation/stored plan mode, including deterministic_fallback.
-- Missing plan=404; expired/stale/conflicting decision=409. Same decision is idempotent; no quantities are reserved.
+## Verification
 
-Validation: run npm test and npm run build in api/. Set P4_TEST_DATABASE_URL to an authorized disposable local database for the PostgreSQL test. It creates/drops only its own randomly named schema, runs the existing migration there, reads a saved plan in a separate Node process, and tests competing decisions with independent workflow instances. Market/logistics remain injected fakes in that test; the real provider-backed end-to-end gate remains with P2/P3 integration.
+Run npm test and npm run build from api/, and npm test / npm run build from web/ with Node 24. Set P4_TEST_DATABASE_URL only to an authorized disposable database for database tests. The combined P2/P4 HTTP/process-restart test requires a local PostgreSQL role with CREATE DATABASE permission: it creates and drops only its own randomly named test database. It exercises the real app, market repositories/matching, Gemini response parser, advocate and workflow; Only external Gemini/OSRM HTTP replies are controlled test fakes in the combined flow; all business modules and repositories execute. Other persistence tests isolate their records in a generated schema. No hosted data is modified by these tests.
 
+The Database interface still cannot physically cancel a running SQL query. P4 bounds response time with abort races, but an uncancellable insert may finish after the response deadline. Source quantities are never reserved or decremented, and acceptance remains farmer_accepted_pending_confirmations.
 
-Follow-up migration fix requested by the user: scripts/migrate.ts now uses scripts/migration-connection.ts to allow at least 2 seconds per Node address attempt and 20 seconds for connection setup, preserving TLS verification and cleaning up failed connections. The hosted Neon migration command was verified successfully. P2 should account for the same cross-region connection timing when implementing shared API PostgreSQL adapters; no app.ts/dependencies.ts wiring was changed by this fix.
+The new api:integration-check command separately exercised real configured routing and Gemini providers against a generated local database. It verified proposal/quote persistence, pending acceptance and unchanged source quantities after an API service restart. The test database is removed; no hosted records are written.
