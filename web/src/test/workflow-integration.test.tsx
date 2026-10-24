@@ -57,13 +57,15 @@ test('API proposal shows stored minimum, all source locations and partial-search
   expect(within(proposal).getByText(money(1665000).replace(/\s/g, ' '))).toBeInTheDocument();
   expect(await screen.findByText(/Search incomplete\. Review this evaluated proposal/)).toBeInTheDocument();
   expect(await screen.findByLabelText('Test route map')).toHaveTextContent('Trip start, Harvest pickup, Buyer delivery, Trip end');
-  expect(screen.getByText('Fallback mode')).toBeInTheDocument();
+  expect(screen.getByText(/AI-assisted selection was unavailable or invalid for part of this search/)).toBeInTheDocument();
+  expect(screen.queryByText('API mode')).not.toBeInTheDocument();
+  expect(screen.queryByText('Fallback mode')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Refresh proposal' }));
   await waitFor(() => expect(fetcher.mock.calls.filter(([url]) => String(url).endsWith(`/api/plans/${plan.id}`))).toHaveLength(2));
   expect(screen.getByText(/Search incomplete\. Review this evaluated proposal/)).toBeInTheDocument();
 });
 
-test('listing response arriving after the plan cannot overwrite the stored fallback mode', async () => {
+test('stored proposal keeps its fallback explanation after the listing loads', async () => {
   let resolveListing!: (value: Response) => void;
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     const pathname = new URL(url).pathname;
@@ -74,20 +76,20 @@ test('listing response arriving after the plan cannot overwrite the stored fallb
       : response({ data: plan, meta: examples.success.meta });
   }));
   start();
-  await screen.findByText('Fallback mode');
+  await waitFor(() => expect(resolveListing).toBeTypeOf('function'));
   resolveListing(response({ data: listing, meta: { ...examples.success.meta, mode: 'stub' } }));
   await screen.findByRole('region', { name: 'A clearer picture of your proceeds.' });
-  expect(screen.getByText('Fallback mode')).toBeInTheDocument();
+  expect(screen.getByText(/AI-assisted selection was unavailable or invalid for part of this search/)).toBeInTheDocument();
   expect(screen.queryByText('Backend preview')).not.toBeInTheDocument();
 });
 
-test('generation with no proposal clears the previous plan URL and retains fallback metadata', async () => {
+test('generation with no proposal clears the previous plan URL and explains fallback', async () => {
   mockApi(); const user = start();
   await user.click(await screen.findByRole('button', { name: 'Generate another proposal' }));
   await screen.findByRole('heading', { name: 'No suitable proposal this time.' });
-  expect(screen.getByTestId('route')).not.toHaveTextContent('plan=');
+  await waitFor(() => expect(screen.getByTestId('route')).not.toHaveTextContent('plan='));
   expect(screen.queryByRole('region', { name: 'A clearer picture of your proceeds.' })).not.toBeInTheDocument();
-  expect(screen.getByText('Fallback mode')).toBeInTheDocument();
+  expect(screen.getByText(/AI-assisted selection was unavailable or invalid during this search/)).toBeInTheDocument();
 });
 
 test('409 decisions block repeated submission and keep regeneration available', async () => {

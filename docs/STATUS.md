@@ -1,6 +1,6 @@
 # Integration status — 24 October 2026
 
-The dev branch integrates sm-fixes proposal history, buyer/driver approvals and workspace tabs with the existing harvest photo upload, Sinhala location lookup and persisted workflow. Farmer listing ownership comes from the authenticated session. Browser request logging remains disabled.
+The dev branch integrates sm-fixes proposal history, buyer/driver approvals and workspace tabs with the existing harvest photo upload, Sinhala location lookup and persisted workflow. Farmer listing ownership comes from the authenticated session. Browser request logging remains disabled. The latest main navigation, breadcrumbs, dark theme and inline fallback notices are integrated while preserving the workspace tabs and approval/history screens.
 
 | Area | Integrated behavior | Remaining |
 |---|---|---|
@@ -13,6 +13,10 @@ The dev branch integrates sm-fixes proposal history, buyer/driver approvals and 
 | Database | Ordered migration ledger; initial, demo-auth and logistics migrations required; configured database already has tariff and quote schema | Review future schema/legacy tariff upgrades through migrations |
 | Authentication | PostgreSQL demo sessions, server-confirmed actor IDs, role/owner checks and API-mode login | Private registration and production identity management |
 | Deployment | Render API and Vercel UI guidance | Hosted end-to-end/proxy verification |
+
+## main integration verification
+
+Merged main commit `1e928c1` into dev. Both production builds passed on Node 24; all 85 API tests passed with PostgreSQL integration enabled and no skips; all 74 frontend tests passed. The contract exporter produced no schema changes. Database checks used synthetic provider responses and a disposable local cluster, which was stopped and cleaned up. Hosted data, deployment settings and remote branches were not changed.
 
 ## sm-fixes integration verification
 
