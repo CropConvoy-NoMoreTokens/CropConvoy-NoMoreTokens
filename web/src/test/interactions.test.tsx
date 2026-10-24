@@ -10,6 +10,7 @@ import { colomboToUtc, tomorrowAt } from '../lib/format';
 import { createHttpService } from '../api/service';
 import type { CropConvoyService } from '../api/types';
 import { CopyButton } from '../components/ui';
+import { Breadcrumbs } from '../components/Breadcrumbs';
 vi.mock('../components/MapCanvas', () => ({ default: ({ points, onPick, geometry }: { points: Array<{ lat: number; lng: number; label: string }>; onPick?: (point: { lat: number; lng: number }) => void; geometry?: unknown }) => <div aria-label="Test map"><p>{points.map(p => p.label).join(', ')} {geometry ? 'Returned geometry' : 'No road geometry'}</p>{onPick && <button type="button" onClick={() => onPick({ lat: 7.8, lng: 80.6 })}>Choose map pin</button>}</div> }));
 function start(path = '/', role?: string, service?: CropConvoyService) {
   if (role) sessionStorage.setItem('cropconvoy.identity', JSON.stringify({ role, username: role }));
@@ -19,6 +20,21 @@ function start(path = '/', role?: string, service?: CropConvoyService) {
   return user;
 }
 describe('landing and shared controls', () => {
+  test('breadcrumbs show the current page and link back through a proposal', async () => {
+    const user = start('/login');
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(within(trail).getByText('Sign in')).toHaveAttribute('aria-current', 'page');
+    await user.click(within(trail).getByRole('link', { name: 'Home' }));
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
+  });
+  test('a proposal breadcrumb links to its harvest and workspace', () => {
+    render(<MemoryRouter initialEntries={['/app/farmer?listing=12345678-aaaa&plan=87654321-bbbb']}><Breadcrumbs /></MemoryRouter>);
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByRole('link', { name: 'Farmer workspace' })).toHaveAttribute('href', '/app/farmer');
+    expect(within(trail).getByRole('link', { name: 'Harvest 12345678' })).toHaveAttribute('href', '/app/farmer?listing=12345678-aaaa');
+    expect(within(trail).getByText('Proposal 87654321')).toHaveAttribute('aria-current', 'page');
+  });
   test('theme, role tabs, FAQ and privacy choices work', async () => {
     const user = start();
     await user.click(screen.getByRole('button', { name: 'Switch to dark mode' })); expect(document.documentElement.dataset.theme).toBe('dark');
