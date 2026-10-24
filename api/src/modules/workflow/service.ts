@@ -1,29 +1,165 @@
-import type { GenerationResult, Plan } from '../../core/contracts.js';
+import { randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
+import { generationResultSchema, logisticsResultSchema, marketResultSchema, quoteSnapshotSchema,
+  type GenerationResult, type Plan, type MarketResult, type ReviewResult, type QuoteSnapshot, type TraceEntry } from '../../core/contracts.js';
 import type { Dependencies } from '../../core/dependencies.js';
 import type { MarketRepository } from '../market/repository.js';
 import { findMarket } from '../market/service.js';
 import type { LogisticsService } from '../logistics/service.js';
-import { reviewOptions } from '../advocate/service.js';
-import { ApiError, pending } from '../../core/errors.js';
+import { deterministicReview, rankedQuotes, reviewOptions } from '../advocate/service.js';
+import { ApiError } from '../../core/errors.js';
+import { createPlanRepository, type PlanRepository } from './repository.js';
+import { createBudget, within } from './budget.js';
+import { parseSources, sourceRejectionCodes } from './validation.js';
+
 export interface WorkflowService {
   generate(listingId: string): Promise<GenerationResult>;
   getPlan(id: string): Promise<Plan>;
   decide(id: string, decision: 'accept' | 'reject'): Promise<Plan>;
 }
-export function createWorkflowService(deps: Dependencies, market: MarketRepository, logistics: LogisticsService): WorkflowService {
+export interface WorkflowOptions {
+  repository?: PlanRepository;
+  findMarket?: typeof findMarket;
+  // P2 must construct P3 with these request-scoped adapters to enforce external-call budgets.
+  logisticsForGeneration?: (scoped: Dependencies) => LogisticsService;
+}
+
+export function createWorkflowService(deps: Dependencies, market: MarketRepository, logistics: LogisticsService,
+  options: WorkflowOptions = {}): WorkflowService {
+  const plans = options.repository ?? createPlanRepository(deps);
+  const loadSources = async (listingId: string, orderId: string, tripId: string) => {
+    const [listing, orders, trips] = await Promise.all([market.getListing(listingId), market.listOrders(), logistics.listTrips()]);
+    const order = orders.find(row => row.id === orderId);
+    const trip = trips.find(row => row.id === tripId);
+    if (!order || !trip) throw new ApiError(409, 'STALE_PLAN', 'Proposal source is unavailable; generate a new proposal');
+    return parseSources({ listing, order, trip });
+  };
   return {
     async generate(listingId) {
-      const signal = AbortSignal.timeout(deps.maxPlanMs);
-      const listing = await market.getListing(listingId);
-      const candidates = await findMarket(listingId, deps, market, signal);
-      const evaluated = await logistics.evaluate(candidates, signal);
-      const quotes = await Promise.all(evaluated.options.map(option => logistics.getQuote(option.quoteId)));
-      const review = await reviewOptions({ listing, quotes }, deps, signal);
-      // P4: implement bounded live coordination, validated snapshots and persistence.
-      return { outcome: 'no_feasible_plan', plan: null, alternatives: [], rejections: evaluated.rejections,
-        searchComplete: false, trace: [{ role: 'workflow', action: 'stub_generation', outcome: review.explanation }] };
+      const budget = createBudget(deps);
+      // Reserve a small part of the total deadline for storing already evaluated results.
+      const totalMs = Math.min(45_000, Math.max(1, Number.isFinite(deps.maxPlanMs) ? deps.maxPlanMs : 45_000));
+      const searchSignal = AbortSignal.any([budget.signal, AbortSignal.timeout(Math.max(1, Math.floor(totalMs * 0.9)))]);
+      const trace: TraceEntry[] = [];
+      const rejections: GenerationResult['rejections'] = [];
+      const quotes: QuoteSnapshot[] = [];
+      const combinations = new Set<string>();
+      const sources = new Map<string, Plan['sourceSnapshot']>();
+      let listing: Plan['sourceSnapshot']['listing'] | undefined;
+      let complete = deps.mode !== 'stub';
+      let review: ReviewResult | undefined;
+      const record = (role: TraceEntry['role'], action: string, outcome: string) => trace.push({ role, action, outcome });
+      try {
+        try {
+          listing = structuredClone(await within(searchSignal, () => market.getListing(listingId)));
+          const candidates = marketResultSchema.parse(await within(searchSignal,
+            () => (options.findMarket ?? findMarket)(listingId, budget.deps, market, searchSignal)));
+          if (candidates.listingId !== listingId) throw new Error('INVALID_MARKET_RESULT');
+          const ids = [...new Set(candidates.candidateOrderIds)];
+          record('market', 'find_candidates', `${ids.length} buyer candidates evaluated`);
+          if (ids.length && !options.logisticsForGeneration && deps.mode !== 'stub') {
+            throw new ApiError(503, 'BUDGET_WIRING_REQUIRED', 'P2 must inject logisticsForGeneration with request-scoped dependencies');
+          }
+          const scopedLogistics = options.logisticsForGeneration?.(budget.deps) ?? logistics;
+          const [initialOrders, initialTrips] = structuredClone(ids.length ? await within(searchSignal,
+            () => Promise.all([market.listOrders(), logistics.listTrips()])) : [[], []]);
+          // One initial bounded batch, then at most one alternative batch. Both share all budgets.
+          const batches = [ids.slice(0, 2), ids.slice(2, 3)].filter(batch => batch.length);
+          for (let attempt = 0; attempt < batches.length; attempt++) {
+            const batch: MarketResult = { ...candidates, candidateOrderIds: batches[attempt] };
+            const evaluationStartedAt = deps.clock.now().getTime();
+            const evaluated = logisticsResultSchema.parse(await within(searchSignal, () => scopedLogistics.evaluate(batch, searchSignal)));
+            for (const pair of [...evaluated.options, ...evaluated.rejections]) {
+              if (!batch.candidateOrderIds.includes(pair.orderId)) throw new Error('UNKNOWN_ORDER_ID');
+              combinations.add(`${pair.orderId}:${pair.tripId}`);
+            }
+            if (combinations.size > 6 || evaluated.options.length > 6) throw new Error('INVALID_LOGISTICS_RESULT');
+            rejections.push(...evaluated.rejections);
+            record('logistics', attempt ? 'alternative_evaluation' : 'evaluate', `${evaluated.options.length} quote summaries returned`);
+            // Sequential retrieval bounds repository concurrency and preserves each validated partial result.
+            for (const summary of evaluated.options) {
+              if (!batch.candidateOrderIds.includes(summary.orderId)) throw new Error('UNKNOWN_ORDER_ID');
+              try {
+                const quote = quoteSnapshotSchema.parse(await within(searchSignal, () => scopedLogistics.getQuote(summary.quoteId)));
+                if (quote.quoteId !== summary.quoteId || quote.listingId !== listingId || quote.orderId !== summary.orderId ||
+                    quote.tripId !== summary.tripId || quote.transportMinor !== summary.transportMinor ||
+                    quote.extraDistanceM !== summary.extraDistanceM || quote.deliveryAt !== summary.deliveryAt) throw new Error('INVALID_QUOTE_HANDOFF');
+                const current = await within(searchSignal, () => loadSources(listingId, quote.orderId, quote.tripId));
+                const codes = sourceRejectionCodes(quote, current);
+                if (!isDeepStrictEqual(current, { listing,
+                  order: initialOrders.find(order => order.id === quote.orderId),
+                  trip: initialTrips.find(trip => trip.id === quote.tripId) })) codes.push('SOURCE_CHANGED_DURING_EVALUATION');
+                if (Date.parse(quote.generatedAt) < evaluationStartedAt || Date.parse(quote.generatedAt) > deps.clock.now().getTime() ||
+                    Date.parse(quote.generatedAt) + 15 * 60_000 <= deps.clock.now().getTime() ||
+                    Date.parse(quote.pickupAt) <= deps.clock.now().getTime()) codes.push('EXPIRED_QUOTE');
+                if (codes.length) rejections.push({ orderId: quote.orderId, tripId: quote.tripId, codes });
+                else if (!sources.has(quote.quoteId)) { quotes.push(quote); sources.set(quote.quoteId, current); }
+              } catch (error) {
+                if (searchSignal.aborted) throw error;
+                complete = false;
+                rejections.push({ orderId: summary.orderId, tripId: summary.tripId, codes: ['INVALID_QUOTE'] });
+              }
+            }
+            if (quotes.length) break;
+          }
+          review = await reviewOptions({ listing, quotes }, budget.deps, searchSignal);
+        } catch (error) {
+          if (error instanceof ApiError && (error.status === 404 || error.code === 'BUDGET_WIRING_REQUIRED')) throw error;
+          complete = false;
+          record('workflow', 'search_interrupted', searchSignal.aborted ? 'DEADLINE_EXCEEDED' : 'DEPENDENCY_UNAVAILABLE');
+        }
+        if (!listing) return generationResultSchema.parse({ outcome: 'no_feasible_plan', plan: null, alternatives: [],
+          rejections, trace, searchComplete: false, mode: budget.mode });
+        if (!review) {
+          review = deterministicReview({ listing, quotes });
+          if (deps.mode !== 'stub') budget.markFallback();
+        }
+        if (review.reasonCodes.includes('MODEL_FALLBACK')) budget.markFallback();
+        if (budget.limited) complete = false;
+        record('advocate', 'review', review.selectedQuoteId ? 'BEST_EVALUATED_NET' : 'NO_FEASIBLE_QUOTE');
+        const ranked = rankedQuotes({ listing, quotes });
+        const selected = ranked[0]; // Always code-selected; model IDs cannot introduce an option.
+        let plan: Plan | null = null;
+        if (selected && !budget.signal.aborted) {
+          const now = deps.clock.now();
+          const expiresAt = new Date(Math.min(now.getTime() + 15 * 60_000,
+            Date.parse(selected.generatedAt) + 15 * 60_000, Date.parse(selected.pickupAt))).toISOString();
+          if (Date.parse(expiresAt) > now.getTime()) {
+            record('workflow', 'proposal_validated', 'READY_TO_PERSIST');
+            try { plan = await plans.save({ id: randomUUID(), listingId, orderId: selected.orderId, tripId: selected.tripId,
+              quantityKg: selected.quantityKg, status: 'proposed', quoteSnapshot: selected, review,
+              sourceSnapshot: sources.get(selected.quoteId)!, mode: budget.mode, trace: [...trace],
+              expiresAt, createdAt: now.toISOString() }, budget.signal); }
+            catch (error) {
+              if (!budget.signal.aborted) throw error;
+              complete = false;
+              record('workflow', 'persistence_interrupted', 'DEADLINE_EXCEEDED');
+            }
+          }
+        }
+        return generationResultSchema.parse({ outcome: plan ? 'proposed' : 'no_feasible_plan', plan,
+          alternatives: ranked.slice(1, 2), rejections, trace, searchComplete: complete, mode: budget.mode });
+      } finally { budget.close(); }
     },
-    async getPlan(_id) { if (deps.mode !== 'stub') return pending('Plan repository (P4)'); throw new ApiError(404, 'NOT_FOUND', 'No saved plan exists in the starter'); },
-    async decide(_id, _decision) { return pending('Plan decision and stale-snapshot validation (P4)'); },
+    getPlan: id => plans.get(id),
+    async decide(id, decision) {
+      const plan = await plans.get(id);
+      const target = decision === 'accept' ? 'farmer_accepted_pending_confirmations' : 'rejected';
+      if (plan.status === target) return plan;
+      if (plan.status !== 'proposed') throw new ApiError(409, 'PLAN_CONFLICT', 'A conflicting decision was already recorded');
+      if (Date.parse(plan.expiresAt) <= deps.clock.now().getTime()) throw new ApiError(409, 'PLAN_EXPIRED', 'Proposal expired; generate a new proposal');
+      if (decision === 'accept') {
+        let current: Plan['sourceSnapshot'];
+        try { current = await loadSources(plan.listingId, plan.orderId, plan.tripId); }
+        catch (error) {
+          if (error instanceof ApiError && (error.status === 404 || error.status === 409))
+            throw new ApiError(409, 'STALE_PLAN', 'Proposal source changed; generate a new proposal');
+          throw error;
+        }
+        if (!isDeepStrictEqual(current, plan.sourceSnapshot) || sourceRejectionCodes(plan.quoteSnapshot, current).length)
+          throw new ApiError(409, 'STALE_PLAN', 'Proposal source changed; generate a new proposal');
+      }
+      return plans.transition(id, target, deps.clock.now().toISOString());
+    },
   };
 }

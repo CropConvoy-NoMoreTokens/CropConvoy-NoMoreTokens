@@ -41,7 +41,10 @@ Content-Type: application/json
 
 {"listingId":"44444444-4444-4444-8444-444444444444"}
 
-### Decision - expected 503 until P4 implements persisted plans and validation
+### Retrieve proposal - replace with response.data.plan.id from a successful generation
+GET {{base}}/api/plans/88888888-8888-4888-8888-888888888888
+
+### Decision - 404 for this synthetic ID; real stale/expired/conflicting proposals give 409
 POST {{base}}/api/plans/88888888-8888-4888-8888-888888888888/decision
 Content-Type: application/json
 

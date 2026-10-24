@@ -1,7 +1,7 @@
 # CropConvoy — Six-Hour Implementation Plan and Architecture
 
 Prepared 24 October 2026. Based on the supplied CropConvoy brief.
-Target: four developers, one frontend owner, three AI/backend owners, Vercel frontend and Railway API/database.
+Target: four developers, one frontend owner, three AI/backend owners, Vercel frontend and Render API/database.
 This is a scoped hackathon prototype, not a production marketplace.
 
 ## 1. Delivery commitment
@@ -28,11 +28,11 @@ MVP limits:
 | Maps | React Leaflet + an approved OpenStreetMap-based tile provider | Click to choose locations and display route lines |
 | API | Node.js + Express + TypeScript | Same language for all three backend owners |
 | Validation | Zod | Runtime checks for API and LLM outputs |
-| Database | Railway PostgreSQL; pg parameterized SQL | Persistent routes/listings/orders/plans; one infrastructure provider |
+| Database | Render PostgreSQL; pg parameterized SQL | Persistent routes/listings/orders/plans; one infrastructure provider |
 | Geometry | Turf.js in backend | Distance to route and progress along route |
 | Road routing | Configurable OSRM-compatible HTTP endpoint | Full route geometry, road distance, duration and legs |
 | AI | One existing tool-calling LLM API, three agent roles | Distinct instructions/tools without three hosting services |
-| Hosting | Vercel web; Railway API + PostgreSQL | Two application deployments plus database |
+| Hosting | Vercel web; Render API + PostgreSQL | Two application deployments plus database |
 | Testing | Existing test runner or Node test; HTTP smoke script | Verify critical decisions, not every UI detail |
 
 Use the LLM provider the team already has working. A Gemini model supporting the required structured output and function calling is one option; validate the exact model ID with a real call in the first 20 minutes. Do not spend the event comparing models or introducing an unfamiliar agent framework.
@@ -44,7 +44,7 @@ Use one monorepo with independent web/ and api/ package files and lockfiles. Kee
 ```mermaid
 flowchart TB
   U["Farmer, buyer, transporter"] --> W["React web app · Vercel"]
-  W -->|"HTTPS JSON"| A["Express API · Railway"]
+  W -->|"HTTPS JSON"| A["Express API · Render"]
   W --> T["Map tile provider"]
   subgraph Backend["Single API process"]
     A --> O["Workflow coordinator"]
@@ -58,7 +58,7 @@ flowchart TB
   M --> AI["Shared LLM provider"]
   L --> AI
   F --> AI
-  V --> DB[("PostgreSQL · Railway")]
+  V --> DB[("PostgreSQL · Render")]
   V --> R["Road-routing service"]
 ```
 
@@ -71,7 +71,7 @@ Map tiles and routing are separate dependencies. Keep required map attribution. 
 | Person | Owns | AI/backend responsibility | Isolated output | Done when |
 |---|---|---|---|---|
 | P1 — Frontend | web/** | Calls documented REST APIs; all farmer/buyer/transporter screens and maps; Vercel | UI uses fixtures until endpoints arrive | Deployed UI completes the demo without developer tools |
-| P2 — Market + platform | api/src/modules/market/**, api/src/core/**, api/src/server.ts, api/db/**, API package/config files | LLM wrapper, extraction, missing-field handling, crop normalization, market agent, listings/orders CRUD, database bootstrap, Railway | ExtractResult + MarketResult; working health and CRUD endpoints | Extraction requires confirmation; only stored compatible orders are returned |
+| P2 — Market + platform | api/src/modules/market/**, api/src/core/**, api/src/server.ts, api/db/**, API package/config files | LLM wrapper, extraction, missing-field handling, crop normalization, market agent, listings/orders CRUD, database bootstrap, Render | ExtractResult + MarketResult; working health and CRUD endpoints | Extraction requires confirmation; only stored compatible orders are returned |
 | P3 — Logistics | api/src/modules/logistics/** | Trip CRUD, full geometry persistence, proximity/order checks, routing adapter, road/time/capacity validation, fare calculator, logistics agent | LogisticsResult with quote/rejection per candidate | Returns a route-backed quote and rejects unsuitable trips |
 | P4 — Advocate + workflow | api/src/modules/advocate/**, api/src/modules/workflow/** | Farmer advocate, bounded agent/tool loop coordination, plan assembly, plan persistence, acceptance/rejection, trace and integration checks | PlanResult and decision endpoints | Minimum proceeds enforced, alternatives bounded, accepted state is accurate |
 
@@ -261,12 +261,12 @@ This implements the uploaded brief's incremental-detour pricing. It does not cha
 | Time | P1 — frontend | P2 — market/platform | P3 — logistics | P4 — advocate/workflow | Integration gate |
 |---|---|---|---|---|---|
 | 00:00–00:30 | Scaffold, reusable map/form | API scaffold, DB schema, LLM access | Verify Sri Lankan routing and geometry | Contracts, fixtures, orchestrator stubs | Freeze contracts; choose demo corridor |
-| 00:30–01:00 | Deploy shell to Vercel | Deploy API/DB to Railway, health, core CRUD | Trip save and displayable geometry | Fake plan endpoint and plan persistence | Hosted browser reaches API and DB |
+| 00:30–01:00 | Deploy shell to Vercel | Deploy API/DB to Render, health, core CRUD | Trip save and displayable geometry | Fake plan endpoint and plan persistence | Hosted browser reaches API and DB |
 | 01:00–02:00 | Farmer input, review, pickup | Live extraction + market tools | Proximity/order checks, routing adapter | Advocate tools, hard-rule checks | Each module runs against fixtures |
 | 02:00–03:00 | Buyer/trip forms, plan cards | Search agent + validation cases | Fare/time/detour checks + agent | Coordinator + decision endpoint | Merge modules by 03:00 |
 | 03:00–04:00 | Switch mocks to live APIs | Fix shared integration issues | Fix real-route failures | End-to-end run and error states | Full workflow on deployed URLs |
 | 04:00–05:00 | Loading/error polish and map route comparison | Missing fields and LLM failure fallback | Wrong direction, capacity, no route tests | Proceeds, stale plan, repeat-decision tests | Feature freeze at 04:30 |
-| 05:00–06:00 | Final Vercel build and browser check | Final Railway config and seed check | Validate/cache demo routes | Rehearse, document, recover regressions | Stable demo; final 20 minutes reserved |
+| 05:00–06:00 | Final Vercel build and browser check | Final Render config and seed check | Validate/cache demo routes | Rehearse, document, recover regressions | Stable demo; final 20 minutes reserved |
 
 No member waits until hour five to combine branches. Short integration checks at hours 1, 2, 3, 4 and 5. Merge the vertical slices as they work. Do not introduce dependencies after feature freeze.
 
@@ -288,23 +288,23 @@ One app with simple role tabs and a shared map component:
 
 Use buttons and form fields instead of a general-purpose chat interface. Keep text extraction separate from publication. Only the farmer confirms the final listing.
 
-## 12. Vercel and Railway deployment checklist
+## 12. Vercel and Render deployment checklist
 
 Start within the first hour:
 1. Push the agreed skeleton to one GitHub repository.
-2. Railway: create PostgreSQL and an API service rooted at api/.
+2. Render: create PostgreSQL and an API service rooted at api/.
 3. Configure the database reference, model secret/model ID, routing URL, CORS origins and demo settings.
 4. API build: npm ci && npm run build. Start: npm start, which runs node dist/server.js.
 5. Server binds 0.0.0.0 and process.env.PORT. Configure /health as healthcheck; a readiness check should also verify DB connectivity.
 6. Apply initial migration in a controlled pre-deploy/release step. Seed synthetic orders/trips once, idempotently; never reset records on server startup.
-7. Generate Railway's public API domain.
+7. Generate Render's public API domain.
 8. Vercel: root web/, Vite preset, npm run build, output dist.
-9. Set VITE_API_BASE_URL to Railway's HTTPS URL, redeploy after changes.
+9. Set VITE_API_BASE_URL to Render's HTTPS URL, redeploy after changes.
 10. Restrict API CORS to the actual Vercel production origin and localhost for development. Add any chosen preview origin explicitly.
 11. Use a single-page/tab interface or hash routing to avoid refresh rewrite work. If using browser routes, configure the SPA fallback.
 12. Test from a private browser window against deployed URLs, then restart the API and verify persistence.
 
-Railway environment:
+Render environment:
 DATABASE_URL
 LLM_API_KEY
 LLM_MODEL
@@ -356,9 +356,9 @@ Three-minute demo: create/show buyer and trip → type harvest description → c
 The architecture and time estimate are proposed engineering choices. The following official documentation supports the platform/API details:
 - Vite on Vercel: https://vercel.com/docs/frameworks/frontend/vite
 - Vite client environment variable exposure: https://vite.dev/guide/env-and-mode
-- Express deployment on Railway: https://docs.railway.com/guides/express
-- Railway port/host binding: https://docs.railway.com/networking/troubleshooting/application-failed-to-respond
-- Railway PostgreSQL: https://docs.railway.com/databases/postgresql
+- Express deployment on Render: https://render.com/docs/deploy-node-express-app
+- Render port/host binding: https://render.com/docs/web-services#port-binding
+- Render PostgreSQL: https://render.com/docs/postgresql-creating-connecting
 - OSRM route API: https://project-osrm.org/docs/v26.4.0/http
 - Turf nearestPointOnLine: https://turfjs.org/docs/api/nearestPointOnLine
 - Gemini structured output: https://ai.google.dev/gemini-api/docs/structured-output

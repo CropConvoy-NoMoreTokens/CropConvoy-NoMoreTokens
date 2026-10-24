@@ -1,10 +1,12 @@
 import 'dotenv/config';
 import { readFile } from 'node:fs/promises';
-import { Pool } from 'pg';
-if (!process.env.DATABASE_URL) throw new Error('Set DATABASE_URL before running migrations');
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 5000 });
-const client = await pool.connect();
+import { Pool, type PoolClient } from 'pg';
+import { configureMigrationNetworking, migrationPoolConfig } from './migration-connection.js';
+configureMigrationNetworking();
+const pool = new Pool(migrationPoolConfig(process.env.DATABASE_URL));
+let client: PoolClient | undefined;
 try {
+  client = await pool.connect();
   await client.query('BEGIN');
   await client.query("SELECT pg_advisory_xact_lock(26102401)");
   await client.query('CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
@@ -16,5 +18,14 @@ try {
     console.log(`Applied ${name}`);
   } else console.log('Initial migration already applied');
   await client.query('COMMIT');
-} catch (error) { await client.query('ROLLBACK'); throw error; }
-finally { client.release(); await pool.end(); }
+} catch (error) {
+  // Preserve the original error if rollback also fails after a disconnect.
+  try { await client?.query('ROLLBACK'); } catch { /* Connection already lost. */ }
+  const code = (error as { code?: string }).code;
+  // Do not log the connection URL, client object, or raw provider error details.
+  console.error(JSON.stringify({ event: 'migration_failed', code: code ?? 'UNKNOWN',
+    message: code === 'ETIMEDOUT' ? 'Database connection timed out. Check network access to PostgreSQL port 5432.' :
+      'Database migration failed. Check connectivity, credentials and migration state.' }));
+  process.exitCode = 1;
+}
+finally { client?.release(); await pool.end(); }

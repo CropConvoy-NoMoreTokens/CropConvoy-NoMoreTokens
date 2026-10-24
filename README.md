@@ -2,7 +2,7 @@
 
 Starter for a four-person, six-hour harvest-to-buyer matching prototype. The project is structured so frontend, market/platform, logistics, and workflow work can start simultaneously.
 
-**Current state:** runnable scaffolding, not a completed backend. Listing/order CRUD uses temporary memory in stub mode. Extraction returns missing fields. Trip creation and plan decisions return explicit 503 stubs. Generation returns an incomplete empty result. No live model, road provider, PostgreSQL repositories, real plans, authentication, or deployment is connected.
+**Current state:** runnable scaffolding, not a completed backend. Listing/order CRUD uses temporary memory in stub mode. Extraction returns missing fields. Trip creation remains an explicit 503 stub. The default generation returns an incomplete empty result while market/logistics are stubs. P4 implements bounded quote review, memory/PostgreSQL plan repositories and safe decisions against injected modules; missing plans return 404. No live model, road provider, PostgreSQL market/logistics wiring, authentication, or deployment is connected.
 
 ## Start locally
 
@@ -53,7 +53,7 @@ docs/
   CONTRACTS.md                        # Team interface agreement
   IMPLEMENTATION-PLAN.md              # Supplied six-hour reference plan
   PARALLEL-WORK.md                    # Branch, ownership, merge instructions
-  DEPLOYMENT.md                       # Railway/Vercel handoff
+  DEPLOYMENT.md                       # Render/Vercel handoff
   STATUS.md                           # What works and what remains
   handoffs/P1-FRONTEND.md
   handoffs/P2-MARKET-PLATFORM.md
@@ -76,7 +76,7 @@ Each handoff includes a copyable task for a teammate or coding assistant. Start 
 
 ## Validate
 
-From api/: `npm test`, `npm run build`, and `npm run contracts:export`.
+From api/: `npm test`, `npm run build`, `npm run contracts:export`, then `node --import tsx src/modules/workflow/export-contracts.ts` for the P4 result schemas until P2 folds them into the existing exporter. Set `P4_TEST_DATABASE_URL` to a disposable local PostgreSQL database to enable the persistence/process-restart integration check.
 
 From web/: `npm run build`.
 
