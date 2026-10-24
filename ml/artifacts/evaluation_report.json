@@ -1,0 +1,125 @@
+{
+  "timestamp": "2026-10-24T13:51:22+0530",
+  "price_model": {
+    "test_overall": {
+      "model_mae_lkr": 21.2,
+      "model_rmse": 34.09,
+      "model_wape_pct": 7.26,
+      "naive_mae_lkr": 47.65,
+      "naive_rmse": 59.55,
+      "naive_wape_pct": 16.32,
+      "prev_year_mae_lkr": 26.76,
+      "prev_year_rmse": 41.61,
+      "prev_year_wape_pct": 9.17
+    },
+    "test_by_crop": {
+      "banana": {
+        "model_mae_lkr": 10.39,
+        "model_rmse": 12.55,
+        "model_wape_pct": 4.31
+      },
+      "carrot": {
+        "model_mae_lkr": 16.13,
+        "model_rmse": 21.53,
+        "model_wape_pct": 6.03
+      },
+      "papaya": {
+        "model_mae_lkr": 17.34,
+        "model_rmse": 25.18,
+        "model_wape_pct": 7.86
+      },
+      "pineapple": {
+        "model_mae_lkr": 13.94,
+        "model_rmse": 17.61,
+        "model_wape_pct": 4.2
+      },
+      "potato": {
+        "model_mae_lkr": 28.2,
+        "model_rmse": 44.47,
+        "model_wape_pct": 7.96
+      },
+      "tomato": {
+        "model_mae_lkr": 41.21,
+        "model_rmse": 58.56,
+        "model_wape_pct": 12.24
+      }
+    },
+    "test_by_horizon": {
+      "1": {
+        "model_mae_lkr": 18.01,
+        "model_rmse": 28.04,
+        "model_wape_pct": 6.17
+      },
+      "2": {
+        "model_mae_lkr": 19.15,
+        "model_rmse": 31.58,
+        "model_wape_pct": 6.56
+      },
+      "3": {
+        "model_mae_lkr": 21.58,
+        "model_rmse": 32.96,
+        "model_wape_pct": 7.39
+      },
+      "4": {
+        "model_mae_lkr": 23.2,
+        "model_rmse": 37.08,
+        "model_wape_pct": 7.95
+      },
+      "5": {
+        "model_mae_lkr": 22.19,
+        "model_rmse": 35.32,
+        "model_wape_pct": 7.6
+      },
+      "6": {
+        "model_mae_lkr": 23.08,
+        "model_rmse": 38.46,
+        "model_wape_pct": 7.91
+      }
+    },
+    "best_round": 107,
+    "params_used": {
+      "objective": "reg:squarederror",
+      "eval_metric": "mae",
+      "tree_method": "hist",
+      "device": "cuda:0",
+      "max_depth": 6,
+      "max_bin": 128,
+      "eta": 0.05,
+      "subsample": 0.8,
+      "colsample_bytree": 0.9,
+      "min_child_weight": 5,
+      "lambda": 1.0,
+      "seed": 42,
+      "nthread": 4
+    },
+    "effective_device": "cuda:0"
+  },
+  "yield_model": {
+    "test_mae_kg_ha": 1429.1,
+    "test_rmse": 1860.4,
+    "baseline_mae_kg_ha": 3033.1,
+    "baseline_rmse": 3762.3,
+    "best_round": 137,
+    "params_used": {
+      "objective": "reg:squarederror",
+      "eval_metric": "mae",
+      "tree_method": "hist",
+      "device": "cuda:0",
+      "max_depth": 6,
+      "max_bin": 128,
+      "eta": 0.05,
+      "subsample": 0.8,
+      "colsample_bytree": 0.9,
+      "min_child_weight": 5,
+      "lambda": 1.0,
+      "seed": 42,
+      "nthread": 4
+    },
+    "effective_device": "cuda:0"
+  },
+  "data_cutoff": "2026-09",
+  "price_rows": 2322,
+  "yield_rows": 10000,
+  "price_test_start": "2025-01",
+  "yield_test_end": "2026-04-17"
+}

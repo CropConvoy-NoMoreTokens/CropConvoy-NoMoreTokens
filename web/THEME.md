@@ -42,3 +42,13 @@ Layer scale: header 30, floating actions 35, privacy 40, scroll progress 45, dia
 ## Imagery
 
 Four original generated photos share natural morning light, Sri Lankan agriculture and a restrained green palette. No generated text, certifications or claimed real participants. Image prompts/provenance: ASSETS.md. Never replace missing routing data with an illustrative photo or generated map.
+
+## Prediction workspace additions
+
+Insights uses the same forest/mint tokens and Figtree family, with a large two-line title, image-based
+produce selection and compact comparisons. Desktop uses three produce columns; mobile uses two.
+Planting forms sit beside comparisons above 767px and stack above them on smaller screens.
+Negative/zero outcomes never receive a recommendation badge. Strong green remains readable in both themes.
+Motion is limited to a short workspace entrance and small hover transitions; reduced motion removes
+these movements. Initial loading reserves page/result space to reduce layout shifts.
+Generated produce imagery is documented in ASSETS.md.

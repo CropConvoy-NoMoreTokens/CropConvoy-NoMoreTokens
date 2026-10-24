@@ -79,3 +79,31 @@ Frontend Plan/GenerationResult types now preserve mode, sourceSnapshot and searc
 The browser regression tests use a copy of P4's full synthetic response envelopes inside src/test/fixtures/workflow-responses.json. The API suite verifies that copy against the checked-in contract pack and runtime schemas. Fixtures are test-only; no production import crosses service roots. Use VITE_DATA_MODE=api in local web/.env and restart Vite to exercise the backend. The default remains the labeled interactive demo. Real road-backed proposal generation requires the provider/migration configuration described in ../docs/handoffs/P4-INTEGRATION.md.
 
 The proposal fare panel reads the versioned carrying/detour components from the stored quote, keeps the stored source minimum/pins, and uses the earlier of quote/plan expiry to block decisions. Demo results remain explicitly simulated with unknown route components left null; old trip rates are not converted to kg-km rates.
+## ML prediction integration (separate service)
+
+VITE_ML_API_BASE_URL selects FastAPI, default http://localhost:8001.
+It is independent of VITE_DATA_MODE: Insights always calls the actual local ML service,
+even when the marketplace uses demo data. It never fabricates success when the service fails.
+
+Endpoints: GET /health, GET /v1/catalog, GET /v1/prices/history with produceId/marketId,
+POST /v1/prices/forecast, POST /v1/planting/recommendations. Raw JSON success fields are preserved;
+these endpoints do not use the core marketplace envelope. See ml/README.md for examples.
+
+Catalog adds server_date (Asia/Colombo date), data_cutoff, forecast_months and planting_months.
+The frontend derives dates, labels, climate assumptions and default costs from the catalog.
+Forecast months cover supported current/future dates; an exhausted window disables submission.
+History remains accessible if data is valid while models/GPU are unavailable.
+
+The client maps Pydantic 422 details/custom field errors into ApiError.fields. Failures use 503;
+network errors/timeouts preserve input; cancellation is combined with a 15-second timeout.
+The UI loads defaults once, then uses explicit update buttons. Requests disable duplicate submissions;
+canceled/superseded responses are ignored. Edited inputs label prior results as outdated.
+Health retries preserve form state. GPU readiness reflects configured/inference-verified model devices.
+
+Currencies remain integer minor units. Analytical yields/hectares may be fractional; core marketplace
+whole-kg contracts and its three-crop enum are unchanged. Fruits belong to the prediction catalog only.
+Training reads synthetic CSVs, not transactions. Real-data ingestion, backend CRUD, authentication and
+deployment remain separate work.
+
+Start the ML service and use Insights. For retraining, open PowerShell and run the unbuffered command
+in ml/README.md; leave it open to view progress. Restart the service afterward and check GPU readiness.

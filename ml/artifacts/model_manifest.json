@@ -1,0 +1,20 @@
+{
+  "feature_version": "2.0.0",
+  "data_cutoff": "2026-09",
+  "trained_at": "2026-10-24T13:51:22+0530",
+  "xgboost_version": "3.2.0",
+  "training_devices": {
+    "price": "cuda:0",
+    "yield": "cuda:0"
+  },
+  "sha256": {
+    "price_model.ubj": "17e5f6cfe935b6bed8dc23b77dbe15ffbcd3eda9e7a7cbd1c1658d726de05905",
+    "yield_model.ubj": "900d60def59b4a99b6842d5c7ac6f5e9df33344f0cd6adc2ebc01e632619a069",
+    "price_preprocessors.pkl": "8b72b12855131deb5183e64f9ee9219d080307b569fb8880b3acc6fc28c84521",
+    "yield_preprocessors.pkl": "d9e7ce8b4d28fc3dde326eb9a5f37af4a5f9260c79e311efe9efa7af51301d18"
+  },
+  "dataset_sha256": {
+    "price_data.csv": "e700bbab1e84a1a4f020380e34595db2399541a89399b0ba7fc8a3c293d7f8e5",
+    "yield_data.csv": "d61f9992301243c753eadd6214f0be087dc81c219ae3b97d4ab59259eaa3c45c"
+  }
+}

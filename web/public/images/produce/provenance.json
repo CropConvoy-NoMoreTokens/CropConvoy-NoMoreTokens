@@ -1,0 +1,61 @@
+{
+  "tool": "Built-in image_gen; transparent_background=true",
+  "date": "2026-10-24",
+  "prompt_template": "Use case: product-mockup. Create a single square photorealistic produce cutout asset for the CropConvoy agricultural website. Subject: {subject} Centered three-quarter product photograph; entire subject visible with generous clear margins. Soft natural daylight from upper left, realistic tactile texture, consistent restrained commercial editorial style. Genuine transparent background with alpha, no colored or white backdrop. No props, plates, crates, people, scenery, typography, labels, logos, watermark, frame or graphic elements. The produce should occupy about 72 percent of the square, clean edges suitable on both pale cream and forest green UI surfaces. Only the specified produce.",
+  "assets": {
+    "tomato": {
+      "generation_id": "exec-80eb75da-8e40-4f71-bbef-40c736a7bedc",
+      "subject": "Three ripe red tomatoes, one with a fresh green calyx, natural imperfect skins.",
+      "files": [
+        "tomato-160.webp",
+        "tomato-320.webp",
+        "tomato-640.webp"
+      ]
+    },
+    "potato": {
+      "generation_id": "exec-8f18ee65-b816-4a78-b4d4-d3af3a57c4a8",
+      "subject": "Three unpeeled golden-brown potatoes with natural skin texture, freshly brushed clean.",
+      "files": [
+        "potato-160.webp",
+        "potato-320.webp",
+        "potato-640.webp"
+      ]
+    },
+    "carrot": {
+      "generation_id": "exec-ceb2bec3-54b7-4c47-8129-9a71adb27da6",
+      "subject": "Three fresh orange carrots with short leafy green tops, arranged diagonally as a compact bunch.",
+      "files": [
+        "carrot-160.webp",
+        "carrot-320.webp",
+        "carrot-640.webp"
+      ]
+    },
+    "banana": {
+      "generation_id": "exec-7ecdc135-c928-46af-b2f5-75142173f4c5",
+      "subject": "One small bunch of five ripe yellow Sri Lankan bananas, naturally curved with realistic speckling.",
+      "files": [
+        "banana-160.webp",
+        "banana-320.webp",
+        "banana-640.webp"
+      ]
+    },
+    "papaya": {
+      "generation_id": "exec-685adc06-528e-4f8c-b026-cd43506c973d",
+      "subject": "One ripe papaya and one half papaya revealing orange flesh and black seeds, compact arrangement.",
+      "files": [
+        "papaya-160.webp",
+        "papaya-320.webp",
+        "papaya-640.webp"
+      ]
+    },
+    "pineapple": {
+      "generation_id": "exec-871ebc46-4dc9-452a-badf-0c27eb7c75dc",
+      "subject": "One whole ripe golden pineapple with a fresh green crown, upright with a slight natural tilt.",
+      "files": [
+        "pineapple-160.webp",
+        "pineapple-320.webp",
+        "pineapple-640.webp"
+      ]
+    }
+  }
+}

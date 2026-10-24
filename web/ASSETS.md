@@ -23,3 +23,25 @@ Source generation identifiers: hero exec-0762eba1-d137-45b9-a88d-4b24a488ef27; f
 scripts/prepare-assets.mjs accepts --hero, --farmer, --buyer and --transport source-file arguments to reproducibly resize/compress with sharp. Landscape hero quality 82, mobile hero 72, supporting quality 78, explicit dimensions, no metadata needed for the app. Nine final WebP files are delivered. Semantic edits should use image generation rather than image-processing code.
 
 Figtree Variable is self-hosted through @fontsource-variable/figtree under OFL-1.1. Phosphor supplies the UI icons. The favicon is a simple CropConvoy C monogram. The map is a live basemap with attribution, separate from these generated assets.
+
+## Prediction tools / generated produce cutouts
+
+Six original realistic product cutouts were generated with the built-in image_gen tool on 24 October 2026:
+tomato, potato, carrot, banana, papaya and pineapple. They are illustrative synthetic produce, not actual listings.
+
+Final files: public/images/produce/{tomato,potato,carrot,banana,papaya,pineapple}-{160,320,640}.webp.
+The eighteen alpha-preserving WebP assets total approximately 683 KiB. Every original was checked for
+an alpha channel before resizing. Original generation IDs, the exact shared prompt and per-item subjects
+are recorded in public/images/produce/provenance.json.
+
+Prompt direction: centered three-quarter realistic produce photograph, soft natural daylight from upper
+left, tactile natural texture, consistent framing, genuinely transparent background. No props, scenery,
+typography, logos or watermark. Subjects: three carrots with green tops, three tomatoes with one calyx,
+golden unpeeled potatoes, a small banana bunch, whole/half papaya and a whole pineapple.
+
+Recreate optimized variants from the original six PNGs:
+
+    node scripts/prepare-produce.mjs --source-dir "ABSOLUTE_FOLDER_CONTAINING_GENERATED_ORIGINALS"
+
+Images reserve their dimensions. Produce names remain accessible text; adjacent duplicate product
+images have empty alt text deliberately. Image loading failures show a labeled plant fallback.

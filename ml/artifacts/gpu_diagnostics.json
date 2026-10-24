@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-10-24T13:51:22+0530",
+  "xgboost_version": "3.2.0",
+  "build_info": {
+    "BUILTIN_PREFETCH_PRESENT": "False",
+    "CUDA_VERSION": "[12, 9]",
+    "DEBUG": "False",
+    "MM_PREFETCH_PRESENT": "True",
+    "THRUST_VERSION": "[2, 8, 2]",
+    "USE_CUDA": "True",
+    "USE_DLOPEN_NCCL": "False",
+    "USE_FEDERATED": "False",
+    "USE_NCCL": "False",
+    "USE_NVCOMP": "False",
+    "USE_OPENMP": "True",
+    "USE_RMM": "False",
+    "libxgboost": "C:\\Games\\CropConvoy\\CropConvoy-NoMoreTokens\\ml\\.venv\\Lib\\site-packages\\xgboost\\lib\\xgboost.dll"
+  },
+  "cuda_support_in_build": true,
+  "training_time_s": 0.0656,
+  "effective_device": "cuda:0",
+  "sample_predictions": [
+    -0.36115720868110657,
+    -6.594869613647461,
+    -0.9442169666290283,
+    1.0789803266525269,
+    -0.1891099512577057
+  ],
+  "prediction_finite": true,
+  "gpu_name": "NVIDIA GeForce RTX 4070 Laptop GPU, 8188 MiB",
+  "status": "PASSED"
+}
