@@ -1,17 +1,18 @@
 import urllib.request
 import json
+import os
 
 def post(endpoint, payload):
     req = urllib.request.Request(
-        f"http://127.0.0.1:8001{endpoint}",
+        f"{os.environ.get('ML_API_BASE_URL', 'http://127.0.0.1:8001').rstrip('/')}{endpoint}",
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"}
+        headers={"Content-Type": "application/json", **({"X-ML-API-Key": os.environ["ML_API_KEY"]} if os.environ.get("ML_API_KEY") else {})}
     )
     with urllib.request.urlopen(req) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 print("=" * 68)
-print("1. PRODUCE PRICE FORECASTS (CUDA XGBoost Inference)")
+print("1. PRODUCE PRICE FORECASTS (XGBoost Inference)")
 print("=" * 68)
 items = [
     ("tomato", "dambulla", "2026-10"),

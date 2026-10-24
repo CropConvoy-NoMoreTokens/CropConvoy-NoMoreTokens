@@ -18,15 +18,15 @@ BASE = Path(__file__).parent
 def unavailable_client(monkeypatch):
     monkeypatch.setattr(features, "colombo_today", lambda: date(2026, 10, 24))
     monkeypatch.setattr(server, "colombo_today", lambda: date(2026, 10, 24))
-    # Exercise the production refusal of CPU configuration before inference starts.
-    monkeypatch.setattr(server, "INFERENCE_DEVICE", "cpu")
+    # Exercise invalid device configuration without requiring any GPU hardware.
+    monkeypatch.setattr(server, "INFERENCE_DEVICE", "unsupported")
     # Own this worker so the GPU suite's teardown cannot affect these checks.
     with ThreadPoolExecutor(max_workers=1) as worker:
-        monkeypatch.setattr(server, "_gpu_worker", worker)
+        monkeypatch.setattr(server, "_inference_worker", worker)
         with TestClient(server.app) as client:
             assert server._state["data_ready"]
             assert not server._state["ready"]
-            assert "CPU fallback is disabled" in server._state["startup_error"]
+            assert "ML_INFERENCE_DEVICE must be" in server._state["startup_error"]
             yield client
 
 
@@ -81,6 +81,20 @@ def test_catalog_calendar_rollover_without_gpu(unavailable_client, monkeypatch):
     monkeypatch.setattr(server, "colombo_today", lambda: date(2026, 12, 31))
     response = unavailable_client.get("/v1/catalog")
     assert response.json()["planting_months"] == ["2026-12", "2027-01", "2027-02"]
+
+
+def test_service_key_protects_analytical_routes(unavailable_client, monkeypatch):
+    monkeypatch.setenv("ML_API_KEY", "test-service-key")
+    assert unavailable_client.get("/v1/catalog").status_code == 401
+    assert unavailable_client.get("/v1/catalog", headers={"X-ML-API-Key": "wrong-key"}).status_code == 401
+    assert unavailable_client.get("/v1/catalog", headers={"X-ML-API-Key": "test-service-key"}).status_code == 200
+    assert unavailable_client.get("/health").status_code == 503  # Public, but models are unavailable here.
+
+
+def test_render_requires_service_auth_configuration(unavailable_client, monkeypatch):
+    monkeypatch.setenv("RENDER", "true")
+    monkeypatch.delenv("ML_API_KEY", raising=False)
+    assert unavailable_client.get("/v1/catalog").status_code == 503
 
 
 def test_missing_artifacts_return_unavailable_without_training(unavailable_client, monkeypatch, tmp_path):

@@ -32,7 +32,8 @@ export default function Insights() {
       });
     return () => controller.abort();
   }, [revision]);
-  const ready = Boolean(health?.models_loaded && health.inference_device.startsWith('cuda'));
+  const ready = Boolean(health?.models_loaded && /^(cpu|cuda(:\d+)?)$/.test(health.inference_device));
+  const engineLabel = health?.inference_device === 'cpu' ? 'CPU ready' : 'GPU ready';
   function changeTab(index:number) {
     setParams(index === 1 ? {tab:'planting'} : {});
   }
@@ -45,9 +46,9 @@ export default function Insights() {
       <div className="insights-intro-note">
         <span className="demo-stamp">Synthetic-data demo</span>
         <p>A space to explore possibilities.<br/>Generated data, transparent assumptions.</p>
-        <details className="engine-details"><summary><span className={'engine-dot ' + (ready ? 'online' : '')}/>{loading ? 'Connecting…' : ready ? 'GPU ready' : 'Predictions unavailable'}<Cpu size={16}/></summary>
+        <details className="engine-details"><summary><span className={'engine-dot ' + (ready ? 'online' : '')}/>{loading ? 'Connecting…' : ready ? engineLabel : 'Predictions unavailable'}<Cpu size={16}/></summary>
           <div>{health && <><p>{health.gpu_name}</p><p>Verified inference: {health.inference_device}</p><p>History through {health.data_cutoff}</p><p>Feature version {health.feature_version}</p></>}
-            {Boolean(healthError) && <p>GPU or models are not ready. Retry when the service is available.</p>}
+            {Boolean(healthError) && <p>The inference service or models are not ready. Retry when the service is available.</p>}
             <button type="button" className="text-button" disabled={loading} onClick={() => setRevision(r => r + 1)}><ArrowClockwise/> Check again</button>
           </div>
         </details>

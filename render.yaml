@@ -27,3 +27,26 @@ services:
         sync: false
       - key: LLM_MODEL
         sync: false
+      - key: ML_API_BASE_URL
+        sync: false
+      - key: ML_API_KEY
+        sync: false
+      - key: ML_REQUEST_TIMEOUT_MS
+        value: "60000"
+  - type: web
+    name: cropconvoy-ml
+    runtime: python
+    plan: free
+    # Run from the repository root so ml.server's package imports work.
+    buildCommand: pip install -r ml/requirements-cpu.lock
+    startCommand: python -m uvicorn ml.server:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: ML_INFERENCE_DEVICE
+        value: cpu
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+      - key: ML_API_KEY
+        sync: false

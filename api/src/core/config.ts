@@ -12,4 +12,7 @@ export const config = z.object({
   ROUTING_BASE_URL: z.preprocess(v => v === '' ? undefined : v, z.string().url().optional()),
   ROUTING_PROFILE: z.string().default('driving'),
   MAX_PLAN_MS: z.coerce.number().int().min(1000).max(45000).default(45000),
+  ML_API_BASE_URL: z.union([z.literal(''), z.url({ protocol: /^https?$/ })]).default(''),
+  ML_API_KEY: z.string().default(''),
+  ML_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(100).max(120000).default(60000),
 }).parse(process.env);

@@ -1,6 +1,6 @@
 # Integration status — 24 October 2026
 
-The dev branch also includes the synthetic-data Insights price/planting extension, served by a separate CUDA-only Python service.
+The dev branch also includes the synthetic-data Insights price/planting extension, served by a separate CPU/CUDA Python service through the Node /api/ml proxy.
 
 The dev branch integrates sm-fixes proposal history, buyer/driver approvals and workspace tabs with the existing harvest photo upload, Sinhala location lookup and persisted workflow. Farmer listing ownership comes from the authenticated session. Browser request logging remains disabled. The latest main navigation, breadcrumbs, dark theme and inline fallback notices are integrated while preserving the workspace tabs and approval/history screens.
 
@@ -16,7 +16,13 @@ The dev branch integrates sm-fixes proposal history, buyer/driver approvals and 
 | Authentication | PostgreSQL demo sessions, server-confirmed actor IDs, role/owner checks and API-mode login | Private registration and production identity management |
 | Deployment | Render API and Vercel UI guidance | Hosted end-to-end/proxy verification |
 
-## Price-Prediction integration verification
+## Separate CPU ML service and proxy
+
+The Node API now proxies five fixed public Insights endpoints to ML_API_BASE_URL and authenticates upstream with a server-only ML_API_KEY. Local api/.env points to http://localhost:8001; the browser uses only VITE_API_BASE_URL. Inputs and upstream schemas are validated, response memory/deadlines are bounded, and marketplace authentication remains separate. CPU is the default serving device; CUDA configuration still rejects unexpected fallback. No retraining or dataset changes were performed.
+
+Local validation: 88 API tests passed with PostgreSQL enabled and no skips; 92 frontend tests passed; all 74 ML tests passed on CPU, including the 108 forecast combinations. Both production builds passed. A separate-process check ran the compiled Node server against the actual key-protected CPU ML server and verified health, catalog, history, forecast and planting results. Shared-key failure, invalid payloads, redirects, model outages and timeout handling are covered. No hosted records or infrastructure were changed. Render free-tier memory/latency remain to be verified on deployment; see ML-DEPLOYMENT.md.
+
+## Previous Price-Prediction integration verification
 
 Merged feat/Price-Prediction commit `e50807e` into dev. Both independent production builds passed on Node 24. All 85 API tests passed with PostgreSQL integration enabled and no skips; all 88 frontend tests passed. The marketplace contract export remained unchanged.
 

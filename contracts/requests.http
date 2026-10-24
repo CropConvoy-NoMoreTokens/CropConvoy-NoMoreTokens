@@ -92,3 +92,24 @@ Authorization: Bearer {{farmerLogin.response.body.$.data.token}}
 ### Revoke farmer session (run last, or sign in again afterward)
 POST {{base}}/api/auth/logout
 Authorization: Bearer {{farmerLogin.response.body.$.data.token}}
+
+### Public synthetic Insights tools; Node calls the separate ML service with its server-only key
+GET {{base}}/api/ml/health
+
+### Supported months and crop/market IDs (raw ML JSON, not the marketplace envelope)
+GET {{base}}/api/ml/v1/catalog
+
+### Synthetic monthly history
+GET {{base}}/api/ml/v1/prices/history?produceId=tomato&marketId=dambulla
+
+### Forecast; replace targetMonth with a current catalog.forecast_months value
+POST {{base}}/api/ml/v1/prices/forecast
+Content-Type: application/json
+
+{"produceId":"tomato","marketId":"dambulla","targetMonth":"2026-10"}
+
+### Planting comparison; replace plantingMonth with a current catalog.planting_months value
+POST {{base}}/api/ml/v1/planting/recommendations
+Content-Type: application/json
+
+{"plantingMonth":"2026-10","regionProfile":"mild_midcountry","marketId":"dambulla","areaHa":1,"soilType":"loam","soilPh":6,"irrigationAvailable":true}

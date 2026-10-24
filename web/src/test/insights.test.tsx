@@ -9,6 +9,7 @@ import { AppRoutes } from '../App';
 import { mockCatalog, mockHealth, mockHistory, mockForecast, mockRecommendations } from './mlFixtures';
 
 let catalog=structuredClone(mockCatalog);
+let health=structuredClone(mockHealth);
 let failNetwork=false;
 let forecastCalls = 0;
 let plantingCalls = 0;
@@ -19,13 +20,14 @@ let deferForecast = false;
 let recommendations:PlantingRecommendationsResponse = structuredClone(mockRecommendations);
 const json = (data:unknown,status=200) => new Response(JSON.stringify(data),{status});
 beforeEach(() => {
+  health=structuredClone(mockHealth);
   catalog=structuredClone(mockCatalog); failNetwork=false;
   forecastCalls=0; plantingCalls=0; failForecast=false; failHealth=false;
   deferred=null; deferForecast=false; recommendations=structuredClone(mockRecommendations);
   vi.stubGlobal('fetch',vi.fn((url:string,options?:RequestInit) => {
     const path=String(url);
     if (path.includes('/v1/catalog')) return Promise.resolve(json(catalog));
-    if (path.endsWith('/health')) return Promise.resolve(json(failHealth ? {detail:{message:'GPU unavailable'}} : mockHealth,failHealth ? 503 : 200));
+    if (path.endsWith('/health')) return Promise.resolve(json(failHealth ? {detail:{message:'Inference unavailable'}} : health,failHealth ? 503 : 200));
     if (path.includes('/history')) {
       const parsed=new URL(path);
       return Promise.resolve(json({...mockHistory,produce_id:parsed.searchParams.get('produceId'),market_id:parsed.searchParams.get('marketId')}));
@@ -49,6 +51,13 @@ function setup(path='/insights') {
 async function loaded() { await screen.findByRole('heading',{name:/Tomato in October/i}); }
 
 describe('Prediction demo',() => {
+ test('CPU inference is ready and can produce forecasts', async () => {
+  health.inference_device='cpu'; health.gpu_name='CPU';
+  setup(); await loaded();
+  expect(screen.getByText('CPU ready')).toBeInTheDocument();
+  expect(forecastCalls).toBeGreaterThan(0);
+  expect(screen.queryByText('Predictions unavailable')).not.toBeInTheDocument();
+ });
  test('shows generated produce choices, verified status, history ranges and accessible table',async() => {
   const user=setup(); await loaded();
   expect(screen.getByRole('heading',{level:1})).toHaveTextContent('Plan yournext harvest.');

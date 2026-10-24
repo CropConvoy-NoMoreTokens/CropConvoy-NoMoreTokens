@@ -1,7 +1,7 @@
 # CropConvoy synthetic-data model card
 
 Generated from evaluation_report.json. Training: 2026-10-24T13:51:22+0530.
-Both XGBoost regressors were trained and refit on verified CUDA. No CPU fallback.
+Both XGBoost regressors were trained and refit on verified CUDA. Serving supports explicit CPU (default) or CUDA inference without retraining. An unexpected device change is rejected.
 
 ## Intended use
 Interactive synthetic-data demo only. The generator's assumptions are illustrative,

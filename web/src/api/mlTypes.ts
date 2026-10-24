@@ -21,7 +21,7 @@ export interface MlHealth {
   data_source: string;
   xgboost_version: string;
   generator_version: string;
-  gpu_name: string;
+  gpu_name?: string;
 }
 
 export interface MlProduceInfo {
