@@ -5,6 +5,9 @@ export const config = z.object({
   API_STUBS: z.enum(['true', 'false']).default('true'),
   DEMO_MODE: z.enum(['true', 'false']).default('true'),
   DATABASE_URL: z.string().default(''),
+  LLM_API_KEY: z.string().default(''),
+  LLM_MODEL: z.string().default(''),
+  LLM_BASE_URL: z.string().url().default('https://generativelanguage.googleapis.com'),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   MAX_PLAN_MS: z.coerce.number().int().min(1000).max(45000).default(45000),
 }).parse(process.env);

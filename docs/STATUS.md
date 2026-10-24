@@ -5,12 +5,12 @@ Update this file as each owner replaces their stubs.
 | Area | Current implementation | Remaining / owner |
 |---|---|---|
 | Repository | Independent api/web packages, lockfiles, ignore rules and handoffs | Team baseline commit/push |
-| API | Express routes, body validation/limit, CORS, request IDs, per-process rate limiting, error envelope | Hosting-specific proxy configuration, request timing / P2 |
-| Health | /health works; /ready refuses memory-only app | Real readiness after DB repositories / P2 |
+| API | Express routes, body validation/limit, CORS, request IDs and timings, per-process rate limiting, error envelope | Hosting-specific proxy configuration after topology check / P2 |
+| Health | /health works; /ready checks all four migrated PostgreSQL tables when configured; Neon readiness verified over HTTP | Hosted proxy topology and deployment check / P2 |
 | Contracts | Zod request/initial-result validators, TypeScript domain types, schemas, fixtures, HTTP examples, getQuote handoff | Full quote/plan runtime validators / P4 |
-| Listings/orders | Validated create/read in temporary memory with server UUIDs | PostgreSQL repositories and seed / P2 |
-| Extraction/market | Null draft and empty candidate stubs | Live model tools, deterministic matching/fallback / P2 |
-| Database | Initial four-table SQL and transactional once-only migration runner | Execute against PostgreSQL; repository mapping / P2 plus module owners |
+| Listings/orders | Validated create/read using PostgreSQL when DATABASE_URL is set; persisted through an API process restart; temporary memory remains for keyless stub mode | Idempotent synthetic seed after P3 validates a real route / P2/P3 |
+| Extraction/market | Gemini adapter, constrained extraction, missing-field questions, code-filtered order IDs, deterministic fallback; live Gemini 3.5 Flash-Lite and Neon checks passed | Integrate P3/P4 flow when ready |
+| Database | Four-table migration applied to configured Neon database; listing/order persistence verified after reconnect | P3/P4 implement their own repository persistence |
 | Trips/routing | Empty list and explicit 503 create stub; routing dependency interface | Provider/corridor validation, persistence, route feasibility / P3 |
 | Pricing | Integer minor-unit detour calculation with baseline tests | Integrate into validated quote snapshots / P3 |
 | Advocate | Explicit BACKEND_PENDING no-plan response | Grounded full-snapshot review and model tools / P4 |
@@ -19,13 +19,14 @@ Update this file as each owner replaces their stubs.
 | Frontend | Role shell, API helper, connection check and stub notice | Forms, maps and full demo screens / P1 |
 | Deployment | Documented roots, commands and environment examples | Actual hosting/resources and browser/restart checks / P1/P2 |
 
-The reference plan describes the target behavior. This status file describes the actual starter. No external resources were created; no credentials were required. Stub listing/order data disappears on restart. No seed route or LLM call is represented as live.
+The reference plan describes the target behavior. The P2 migration was applied to the configured Neon database. The persistence check used synthetic records and removed them afterward. No route seed or LLM call is represented as live.
 
 ## Baseline verification
 
-- API TypeScript production build: passed.
-- API tests: 4 passed (HTTP validation/stub behavior and three fare cases).
+- API TypeScript production build: passed with Node 24.
+- API tests: 12 passed with Node 24 (HTTP validation/stub behavior, fare math, Gemini tool validation, market rejection/fallback, extraction evidence checks, and repository mapping).
 - Web TypeScript/Vite production build: passed.
 - Built API startup and /health smoke check: passed.
 - Contract JSON Schema export and local Markdown link checks: passed.
-- PostgreSQL migration execution, live LLM/routing, deployed browser flow and persistence restart check: not run; require implementation and external service configuration.
+- PostgreSQL migration, listing/order persistence after a Node 24 API process restart, and /ready over HTTP: passed against configured Neon database. Synthetic check records were removed.
+- Gemini model lookup, structured output, tool call, live extraction HTTP, and code-filtered live market matching: passed with Gemini 3.5 Flash-Lite. Routing and deployed browser flow: not run; require remaining team integrations.

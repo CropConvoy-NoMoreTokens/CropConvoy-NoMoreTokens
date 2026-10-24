@@ -10,8 +10,12 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "test": "tsx --test test/*.test.ts src/modules/*/*.test.ts",
+    "test": "tsx --test test/*.test.ts src/core/*.test.ts src/modules/*/*.test.ts",
     "db:migrate": "tsx scripts/migrate.ts",
+    "db:check": "tsx scripts/check-persistence.ts",
+    "llm:check": "tsx scripts/check-llm.ts",
+    "market:check": "tsx scripts/check-market.ts",
+    "api:restart-check": "tsx scripts/check-restart.ts",
     "contracts:export": "tsx scripts/export-contracts.ts"
   },
   "dependencies": {
