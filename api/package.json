@@ -17,7 +17,8 @@
     "llm:check": "tsx scripts/check-llm.ts",
     "market:check": "tsx scripts/check-market.ts",
     "api:restart-check": "tsx scripts/check-restart.ts",
-    "contracts:export": "tsx scripts/export-contracts.ts"
+    "contracts:export": "tsx scripts/export-contracts.ts",
+    "api:integration-check": "tsx scripts/check-integrated-providers.ts"
   },
   "dependencies": {
     "@turf/turf": "7.4.0",

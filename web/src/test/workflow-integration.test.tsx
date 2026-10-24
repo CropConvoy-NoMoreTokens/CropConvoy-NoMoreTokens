@@ -102,3 +102,26 @@ test('legacy stored plans without search status do not imply a completed search'
   mockApi(legacy as typeof plan); start();
   await screen.findByText(/Search completeness was not recorded/);
 });
+
+test('versioned proposal displays carrying and detour components from stored snapshots', async () => {
+  const stored = structuredClone(plan);
+  Object.assign(stored.quoteSnapshot, { ratePerKgKmMinor: 20, routeCarryDistanceM: 30000,
+    shipmentChargeMinor: 48000, detourChargeMinor: 60000, transportMinor: 143000, netMinor: 1617000 });
+  stored.sourceSnapshot.trip.ratePerKgKmMinor = 20;
+  mockApi(stored); start();
+  const proposal = await screen.findByRole('region', { name: 'A clearer picture of your proceeds.' });
+  expect(within(proposal).getByText('Added detour')).toBeInTheDocument();
+  expect(within(proposal).getByText(money(48000).replace(/\s/g, ' '))).toBeInTheDocument();
+  expect(within(proposal).getByText(money(60000).replace(/\s/g, ' '))).toBeInTheDocument();
+  expect(within(proposal).getByText(money(1617000).replace(/\s/g, ' '))).toBeInTheDocument();
+  expect(within(proposal).getByText(/80 kg × 30\.00 km/)).toBeInTheDocument();
+});
+
+test('authoritative quote expiry blocks decisions even if the plan advertises a later expiry', async () => {
+  const stored = structuredClone(plan);
+  stored.quoteSnapshot.expiresAt = '2026-10-25T03:00:00Z';
+  mockApi(stored); start();
+  await screen.findByText('This proposal has expired. Generate another proposal before deciding.');
+  expect(screen.getByRole('button', { name: 'Accept proposal' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Reject proposal' })).toBeDisabled();
+});

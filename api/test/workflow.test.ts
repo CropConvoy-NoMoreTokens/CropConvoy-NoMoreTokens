@@ -262,3 +262,35 @@ test('partial-search status survives plan retrieval and decisions', async () => 
   assert.equal((await service.getPlan(generated.plan.id)).searchComplete, false);
   assert.equal((await service.decide(generated.plan.id, 'accept')).searchComplete, false);
 });
+
+test('advocate recomputes weight-distance charges and rejects component tampering', () => {
+  const f = setup();
+  Object.assign(f.quote, { ratePerKgKmMinor: 20, routeCarryDistanceM: 30000,
+    shipmentChargeMinor: 48000, transportMinor: 143000, netMinor: 1617000 });
+  assert.deepEqual(quoteRejectionCodes(f.listing, f.quote), []);
+  f.quote.shipmentChargeMinor++;
+  assert.ok(quoteRejectionCodes(f.listing, f.quote).includes('INVALID_MONEY'));
+  f.quote.shipmentChargeMinor--;
+  f.quote.detourChargeMinor++;
+  assert.ok(quoteRejectionCodes(f.listing, f.quote).includes('INVALID_MONEY'));
+});
+
+test('expired authoritative quotes cannot become proposed plans', async () => {
+  const f = setup(); f.quote.expiresAt = f.deps.clock.now().toISOString();
+  const result = await f.workflow().generate(f.listing.id);
+  assert.equal(result.plan, null);
+  assert.ok(result.rejections.some(rejection => rejection.codes.includes('EXPIRED_QUOTE')));
+});
+
+test('cumulative logistics diagnostics are deduplicated and model prose never enters traces', async () => {
+  const f = setup(); f.deps.mode = 'live';
+  f.options.findMarket = async () => ({ ...results.market, candidateOrderIds: [randomUUID(), randomUUID(), f.order.id] });
+  f.logistics.evaluate = async input => input.candidateOrderIds.includes(f.order.id)
+    ? structuredClone(results.logistics) : { options: [], rejections: [] };
+  Object.assign(f.logistics, { getRunDiagnostics: () => ({ mode: 'live', searchComplete: true,
+    routedCombinations: 1, trace: [{ role: 'logistics', action: 'agent_comparison', outcome: 'PRIVATE_MODEL_DETAIL '.repeat(50) }] }) });
+  const result = await f.workflow().generate(f.listing.id);
+  assert.ok(result.plan);
+  assert.equal(result.trace.filter(entry => entry.action === 'agent_comparison').length, 1);
+  assert.ok(result.trace.every(entry => entry.outcome.length <= 500 && !entry.outcome.includes('PRIVATE_MODEL_DETAIL')));
+});

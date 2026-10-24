@@ -26,14 +26,14 @@ Content-Type: application/json
 ### List orders
 GET {{base}}/api/orders
 
-### List trips - empty until P3 implements storage
+### List persisted weight-distance-v2 trips (empty in explicit stub mode)
 GET {{base}}/api/trips
 
-### Create trip - expected 503 NOT_IMPLEMENTED in starter
+### Create trip - requires configured road routing, migrations 001/002 and API_STUBS=false
 POST {{base}}/api/trips
 Content-Type: application/json
 
-{"demoTransporterId":"33333333-3333-4333-8333-333333333333","start":{"lat":7.95,"lng":80.65},"end":{"lat":7.25,"lng":80.63},"departureAt":"2026-10-25T03:00:00Z","availableKg":120,"corridorM":3000,"maxExtraDistanceM":10000,"maxExtraTimeS":3600,"baseMinor":35000,"perKmMinor":10000,"handlingMinor":0}
+{"demoTransporterId":"33333333-3333-4333-8333-333333333333","start":{"lat":7.95,"lng":80.65},"end":{"lat":7.25,"lng":80.63},"departureAt":"2026-10-25T03:00:00Z","availableKg":120,"corridorM":3000,"maxExtraDistanceM":10000,"maxExtraTimeS":3600,"baseMinor":35000,"perKmMinor":10000,"handlingMinor":0,"ratePerKgKmMinor":20,"pricingVersion":"weight-distance-v2"}
 
 ### Replace listingId with a real POST /api/listings result (this example ID returns 404)
 POST {{base}}/api/plans/generate

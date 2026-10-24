@@ -1,52 +1,30 @@
 # Integration status — 24 October 2026
 
-integration/dev-logistics combines the frontend dev branch, P2 market/platform, P3 logistics and P4 workflow/advocate.
+P1 UI, P2 market/platform, P3 logistics and P4 advocate/workflow are integrated on feat/p4-persisted-advocate-workflow after rebasing onto the updated dev branch. The rebase is complete and there are no unresolved conflict markers.
 
 | Area | Integrated behavior | Remaining |
 |---|---|---|
-| Frontend | Role workspaces, map pins/routes, API adapters, kg-km rate input and fare breakdown | Hosted browser verification |
-| Market | PostgreSQL listings/orders, extraction, filtered buyer search, labelled fallback | Live model validation in integrated environment |
-| Logistics | Stored full routes, capacity/proximity/direction/road/timing checks, weight-distance-v2 fare and persistent quotes | Approved production routing provider |
-| Advocate | Full-snapshot hard-rule checks, quantity-distance money verification and code-selected best evaluated net | Live integrated model check |
-| Workflow | Request-scoped budgets, validated handoff, quote-bounded expiry, persistent plans, source freshness and conditional decisions | Hosted restart verification |
-| Database | Ordered migration ledger; initial, demo-auth and logistics migrations applied to the configured development database | Apply reviewed migrations to team deployment database |
-| Readiness | PostgreSQL source/plan/quote tables and kg-km tariff column required | Hosting proxy topology configuration |
-| Authentication | Database-backed sessions and role/owner checks for three predefined public demo accounts in API mode | Private user registration and production identity management |
-| Deployment | Railway API/database and Vercel setup documented | Not deployed or pushed by this integration |
+| Frontend | Role workspaces, source snapshot pins/minimums, versioned carrying/detour breakdown, fallback/partial status, expiry/conflict controls | Hosted browser verification |
+| Market/model | PostgreSQL listings/orders, evidence-checked extraction, filtered buyer search, normalized Gemini tools and explicit fallback | Provider availability remains environment-dependent |
+| Logistics | Configurable real OSRM adapter, road/stop/constraint checks, weight-distance-v2 fare and durable quotes | Approved provider capacity and deployment configuration |
+| Advocate | Integer money/component verification, minimum-net rules, validated quote IDs and best evaluated feasible net | No global-optimum or confirmed-booking claim |
+| Workflow | Scoped shared budgets, logistics diagnostics, quote-bounded expiry and saved partial plans | Physical SQL cancellation remains limited by the injected DB interface |
+| Decisions | Source/price re-read, legacy tariff rejection, quote/plan expiry in conditional updates, idempotency and 409 conflicts | Buyer/transporter confirmations remain outside MVP |
+| Database | Ordered migration ledger; initial, demo-auth and logistics migrations required; configured database already has tariff and quote schema | Review future schema/legacy tariff upgrades through migrations |
+| Authentication | PostgreSQL demo sessions, server-confirmed actor IDs, role/owner checks and API-mode login | Private registration and production identity management |
+| Deployment | Render API and Vercel UI guidance | Hosted end-to-end/proxy verification |
 
-Verification: 62 backend tests passed including optional PostgreSQL suites; 35 UI tests passed; API and UI production builds passed. Browser API-mode test used a real stored road route and generated a proposal, recorded farmer acceptance, and preserved it after an API restart. The local model adapter was intentionally unconfigured, so AI results were labelled deterministic fallback.
+## Current rebase
 
-## Baseline verification
+Preserved demo authentication together with P3 logistics and P4 workflow wiring. HTTP integration helpers use authenticated roles and server-confirmed actor IDs. Tests and builds were not run for this rebase, as requested; the verification below records earlier work and must be repeated manually.
 
-- API TypeScript production build: passed with Node 24.
-- API tests: 12 passed with Node 24 (HTTP validation/stub behavior, fare math, Gemini tool validation, market rejection/fallback, extraction evidence checks, and repository mapping).
-- Web TypeScript/Vite production build: passed.
-- Built API startup and /health smoke check: passed.
-- Contract JSON Schema export and local Markdown link checks: passed.
-- PostgreSQL migration, listing/order persistence after a Node 24 API process restart, and /ready over HTTP: passed against configured Neon database. Synthetic check records were removed.
-- Gemini model lookup, structured output, tool call, live extraction HTTP, and code-filtered live market matching: passed with Gemini 3.5 Flash-Lite. Routing and deployed browser flow: not run; require remaining team integrations.
+## Previous verification (before this rebase)
 
+- All 43 frontend tests and both independent production builds passed on Node 24; API tests, fixtures and integration/migration scripts type-checked.
+- All 72 API tests passed on Node 24, with every PostgreSQL suite enabled and no skips. Tests cover both migrations, old tariff upgrades, actual P2/P3/P4 services, persisted quotes/plans, separate API processes, repeated/conflicting/stale/expired decisions, model/routing outages and partial results at deadline.
+- The combined automated tests fake only external Gemini/OSRM HTTP responses, not the production logistics/business repositories. Long model prose is excluded from persisted trace output; cumulative diagnostics are deduplicated.
+- A bounded live Gemini logistics/advocate protocol check passed using explicitly synthetic in-memory routing fixtures and no database writes.
+- A second live check used the configured real routing and Gemini services with a disposable local PostgreSQL database: 93,258.7 m original road route, 15,351.8889 m carrying segment, LKR 595.63 transport and LKR 17,004.37 proceeds for the explicitly synthetic 80 kg / LKR 220 per kg test sale. It returned live/complete, recorded farmer_accepted_pending_confirmations, retained the same quote after a new API instance/pool, and left stock/demand/capacity unchanged. The generated local database was removed. No hosted records were written.
+- The configured database already has migration 002, logistics_quotes and rate/version columns; no hosted migration was applied by this task.
 
-## P4 verification
-
-Implemented on feat/p4-persisted-advocate-workflow. The default app still has stub market/logistics and returns an explicitly incomplete empty search; trip creation remains 503. Missing plans now return 404. No external hosting resources were created. Application .env values are never printed or committed.
-
-API production build passed on Node 24. All 26 API tests passed with PostgreSQL enabled, including the separate-process restart check. Contracts were regenerated through the existing exporter plus the supplemental P4 exporter.
-
-Node 24 checks cover full workflow generation/retrieval/decisions against injected fakes, minimum proceeds, wrong model selections/failure, source freshness, expiry, concurrent/repeated/conflicting decisions, routing/model budgets, queued cancellation, deadlines and fallback HTTP metadata. A disposable PostgreSQL 15 database verifies real plan SQL, restart retrieval in a separate process and independent concurrent decisions. Real market/logistics/provider integration and deployed API restart remain unverified because those owners' modules are still stubs. See handoffs/P4-INTEGRATION.md for the exact owner requests.
-
-Hosted database check, 24 October 2026: DATABASE_URL is configured in the ignored api/.env. DNS resolves, but connection attempts from the execution environment fail with ETIMEDOUT, including a retry configured with a 20-second connection timeout. No hosted migrations or test writes were performed. Hosted schema/persistence remains unverified. Configuring the URL alone does not change the default memory persistence adapter.
-
-
-## Hosted migration connectivity fix — 24 October 2026
-
-The earlier timeout is resolved for the migration command. System, Google and Cloudflare DNS agreed, and direct IPv4 TCP probes succeeded. Node's 250 ms automatic per-address connection timeout was too short on this connection: a read-only PostgreSQL probe succeeded after increasing it to 2,000 ms. The migration command now raises that timeout without lowering a larger operator setting, retains IPv4/IPv6 fallback, allows 20 seconds for overall connection setup, explicitly preserves strict TLS verification for sslmode=require, and closes the pool on connection failure.
-
-The fixed npm run db:migrate completed against the configured Neon database with "Initial migration already applied". The application tables and migration ledger exist. Latest verification: API production build passed; 29 tests passed and the optional isolated PostgreSQL test was skipped in this run. This change fixes the migration command; API repository wiring and live module integration remain separate work.
-
-
-## Rebased UI integration verification — 24 October 2026
-
-The new frontend uses the existing API endpoints. Integrated the P4 proposal snapshot/mode fields, persisted search completeness through reload/decisions (legacy plans show unknown completeness), retained fallback labels during concurrent listing/plan loads, cleared stale plan URLs on empty regeneration, rendered all stored source locations, and blocked expired/conflicting decisions while keeping regeneration available. Demo results stay explicitly simulated and never gain fabricated road geometry.
-
-Validation: 32 API tests passed on Node 24 with the disposable local PostgreSQL integration enabled, including process-restart retrieval and old/new JSONB metadata compatibility. All 41 frontend tests passed on Node 24, including six full-response HTTP/UI regressions. API and web production builds passed independently. Reference contracts were regenerated and the frontend's test-only response copy is checked against runtime API schemas. No hosting resources or hosted data were changed. The full live provider-backed flow remains pending P2/P3 stubs and shared wiring; web defaults to demo and can use HTTP with VITE_DATA_MODE=api.
+Repeat the real-provider check from api/ with a dedicated local PostgreSQL URL in P4_TEST_DATABASE_URL: npm run api:integration-check. It requires CREATE DATABASE permission locally, uses the configured provider credentials, and drops only its generated local test database. Do not point test-write suites at an unreviewed hosted/production database.

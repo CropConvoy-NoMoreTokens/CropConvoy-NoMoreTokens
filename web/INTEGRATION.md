@@ -56,7 +56,7 @@ Frontend Trip/QuoteSnapshot types permit null geometry/measurements only to repr
 
 ## Backend-ready switch checklist
 
-1. P3 completes real routing/trip/quote persistence; P2 market/Gemini and P4 workflow/persistence are integrated. Confirm the existing endpoint/envelope/field agreement, and provide success, empty, stale and dependency examples.
+1. P3 routing/trip/quote persistence is integrated; configure and verify the approved road provider; P2 market/Gemini and P4 workflow/persistence are integrated. Confirm the existing endpoint/envelope/field agreement, and provide success, empty, stale and dependency examples.
 2. Set VITE_DATA_MODE=api and VITE_API_BASE_URL to the actual API address. Allow this frontend origin in API CORS.
 3. Verify extraction → review → confirmed publication → generation → stored snapshot → decision. Refresh both listing and proposal URLs.
 4. Verify saved order/trip data survives API restart, route geometry is real, and snapshot money/date units match.
@@ -70,4 +70,6 @@ Site search is local to static pages/help and records loaded into this app sessi
 
 Frontend Plan/GenerationResult types now preserve mode, sourceSnapshot and searchComplete. searchComplete is optional on stored plans for compatibility with older proposals; unknown status is shown explicitly. Proposals use stored source pins and farmer minimum, display original/modified quote geometry, and retain fallback mode after listing/retrieval races. Regenerating with no proposal removes the prior plan URL. Expired or server-conflicting decisions are disabled while refresh/regeneration remain available.
 
-The browser regression tests use a copy of P4's full synthetic response envelopes inside src/test/fixtures/workflow-responses.json. The API suite verifies that copy against the checked-in contract pack and runtime schemas. Fixtures are test-only; no production import crosses service roots. Use VITE_DATA_MODE=api in local web/.env and restart Vite to exercise the backend. The default remains the labeled interactive demo. Real road-backed proposal generation still requires the P3 integration described in ../docs/handoffs/P4-INTEGRATION.md.
+The browser regression tests use a copy of P4's full synthetic response envelopes inside src/test/fixtures/workflow-responses.json. The API suite verifies that copy against the checked-in contract pack and runtime schemas. Fixtures are test-only; no production import crosses service roots. Use VITE_DATA_MODE=api in local web/.env and restart Vite to exercise the backend. The default remains the labeled interactive demo. Real road-backed proposal generation requires the provider/migration configuration described in ../docs/handoffs/P4-INTEGRATION.md.
+
+The proposal fare panel reads the versioned carrying/detour components from the stored quote, keeps the stored source minimum/pins, and uses the earlier of quote/plan expiry to block decisions. Demo results remain explicitly simulated with unknown route components left null; old trip rates are not converted to kg-km rates.
