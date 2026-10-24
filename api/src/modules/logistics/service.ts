@@ -4,8 +4,8 @@ import type { LogisticsResult, MarketResult, TripInput, TraceEntry } from '../..
 import { marketResultSchema, idSchema } from '../../core/contracts.js';
 import type { Dependencies } from '../../core/dependencies.js';
 import { ApiError, pending } from '../../core/errors.js';
-import { hybridTripInputSchema, hybridTripSchema, hybridQuoteSchema, listingSchema, orderSchema,
-  type HybridTrip, type HybridQuote } from './contracts.js';
+import { weightDistanceTripInputSchema, weightDistanceTripSchema, weightDistanceQuoteSchema, listingSchema, orderSchema,
+  type WeightDistanceTrip, type WeightDistanceQuote } from './contracts.js';
 import { createPostgresLogisticsRepository, type LogisticsRepository } from './repository.js';
 import { assertSimpleRoute, checkCorridor, FeasibilityError } from './geometry.js';
 import { checkRoad, checkShipment, defaultTiming, validateStops, type TimingPolicy } from './feasibility.js';
@@ -19,10 +19,10 @@ export type RunDiagnostics = {
   routedCombinations:number; trace:TraceEntry[];
 };
 export interface LogisticsService {
-  listTrips():Promise<HybridTrip[]>;
-  createTrip(input:TripInput):Promise<HybridTrip>;
+  listTrips():Promise<WeightDistanceTrip[]>;
+  createTrip(input:TripInput):Promise<WeightDistanceTrip>;
   evaluate(market:MarketResult,signal:AbortSignal):Promise<LogisticsResult>;
-  getQuote(quoteId:string):Promise<HybridQuote>;
+  getQuote(quoteId:string):Promise<WeightDistanceQuote>;
 }
 export interface InstrumentedLogisticsService extends LogisticsService {
   /** Additive handoff: P4 should copy this into GenerationResult's existing trace/completion fields. */
@@ -32,7 +32,7 @@ export type LogisticsOptions = {
   repository?:LogisticsRepository; timing?:Partial<TimingPolicy>;
   quoteTtlMs?:number; routingTimeoutMs?:number; modelTimeoutMs?:number;
 };
-type Evaluation={quote?:HybridQuote;codes?:string[]};
+type Evaluation={quote?:WeightDistanceQuote;codes?:string[]};
 type Run = {
   listingId:string; attempts:number; modelTurns:number; signal:AbortSignal; results:Map<string,Evaluation>; diagnostics:RunDiagnostics;
 };
@@ -68,14 +68,14 @@ export function createLogisticsService(deps:Dependencies, options:LogisticsOptio
     async createTrip(input) {
       if(deps.mode==='stub') return pending('Trip registration requires live road routing and PostgreSQL wiring (P2)');
       storageReady();
-      const v=hybridTripInputSchema.parse(input);
+      const v=weightDistanceTripInputSchema.parse(input);
       const now=deps.clock.now();
       if(Date.parse(v.departureAt)<=now.getTime()) throw new ApiError(422,'DEPARTURE_IN_PAST','Choose a future departure');
       const signal=AbortSignal.timeout(deps.maxPlanMs);
       const r=await route([v.start,v.end],signal);
       validateStops([v.start,v.end],r.snappedPoints,policy.snapToleranceM);
       assertSimpleRoute(r.geometry);
-      const trip=hybridTripSchema.parse({...v,id:randomUUID(),status:'open',createdAt:now.toISOString(),
+      const trip=weightDistanceTripSchema.parse({...v,id:randomUUID(),status:'open',createdAt:now.toISOString(),
         routeGeoJSON:r.geometry,routeDistanceM:r.distanceM,routeDurationS:r.durationS,
         routeProvider:r.provider,routeProfile:r.profile});
       await read(repo.saveTrip(trip),signal);
@@ -85,7 +85,7 @@ export function createLogisticsService(deps:Dependencies, options:LogisticsOptio
       idSchema.parse(id);
       if(deps.mode==='stub') throw new ApiError(404,'NOT_FOUND','No validated quote exists in stub mode');
       storageReady();
-      const q=hybridQuoteSchema.parse(await repo.getQuote(id));
+      const q=weightDistanceQuoteSchema.parse(await repo.getQuote(id));
       if(q.quoteId!==id) throw new ApiError(503,'INVALID_STORED_QUOTE','Quote ID does not match');
       if(Date.parse(q.expiresAt)<=deps.clock.now().getTime()) throw new ApiError(409,'QUOTE_EXPIRED','Generate a new transport quote');
       return q;
@@ -117,7 +117,7 @@ export function createLogisticsService(deps:Dependencies, options:LogisticsOptio
       const candidates:Array<Candidate & {carry:number;optimisticNet:number}>=[];
       const rejections:LogisticsResult['rejections']=[];
       const orderMap=new Map(orders.map(raw=>{const o=orderSchema.parse(raw);return [o.id,o];}));
-      const tripMap=new Map(trips.slice(0,100).map(raw=>{const t=hybridTripSchema.parse(raw);return [t.id,t];}));
+      const tripMap=new Map(trips.slice(0,100).map(raw=>{const t=weightDistanceTripSchema.parse(raw);return [t.id,t];}));
       for(const order of orderMap.values()) for(const trip of tripMap.values()) {
         signal.throwIfAborted();
         try {
@@ -125,7 +125,7 @@ export function createLogisticsService(deps:Dependencies, options:LogisticsOptio
           const corridor=checkCorridor(trip.routeGeoJSON,listing.pickup,order.delivery,trip.corridorM);
           const amounts=calculateProceeds({quantityKg:listing.quantityKg,pricePerKgMinor:order.pricePerKgMinor,
             baseMinor:trip.baseMinor,handlingMinor:trip.handlingMinor,minNetMinor:listing.minNetMinor,
-            extraDistanceM:0,perKmMinor:trip.perKmMinor,shipmentPerKmMinor:trip.shipmentPerKmMinor,
+            extraDistanceM:0,perKmMinor:trip.perKmMinor,ratePerKgKmMinor:trip.ratePerKgKmMinor,
             routeCarryDistanceM:corridor.routeCarryDistanceM,pricingVersion:trip.pricingVersion});
           candidates.push({orderId:order.id,tripId:trip.id,carry:corridor.routeCarryDistanceM,optimisticNet:amounts.netMinor});
         } catch(error) {
@@ -154,15 +154,15 @@ export function createLogisticsService(deps:Dependencies, options:LogisticsOptio
             const valid=checkRoad(listing,order,trip,result,policy);
             const amounts=calculateProceeds({quantityKg:listing.quantityKg,pricePerKgMinor:order.pricePerKgMinor,
               baseMinor:trip.baseMinor,handlingMinor:trip.handlingMinor,minNetMinor:listing.minNetMinor,
-              extraDistanceM:valid.extraDistanceM,perKmMinor:trip.perKmMinor,shipmentPerKmMinor:trip.shipmentPerKmMinor,
+              extraDistanceM:valid.extraDistanceM,perKmMinor:trip.perKmMinor,ratePerKgKmMinor:trip.ratePerKgKmMinor,
               routeCarryDistanceM:candidate.carry,pricingVersion:trip.pricingVersion});
             const now=deps.clock.now();
             const expiresMs=Math.min(now.getTime()+quoteTtlMs,Date.parse(trip.departureAt),Date.parse(order.deadlineAt));
             if(expiresMs<=now.getTime()) throw new FeasibilityError(['SOURCE_EXPIRED']);
-            const q=hybridQuoteSchema.parse({
+            const q=weightDistanceQuoteSchema.parse({
               quoteId:randomUUID(),listingId:listing.id,orderId:order.id,tripId:trip.id,quantityKg:listing.quantityKg,
               pricePerKgMinor:order.pricePerKgMinor,baseMinor:trip.baseMinor,perKmMinor:trip.perKmMinor,
-              handlingMinor:trip.handlingMinor,shipmentPerKmMinor:trip.shipmentPerKmMinor,pricingVersion:trip.pricingVersion,
+              handlingMinor:trip.handlingMinor,ratePerKgKmMinor:trip.ratePerKgKmMinor,pricingVersion:trip.pricingVersion,
               routeCarryDistanceM:candidate.carry,shipmentChargeMinor:amounts.shipmentChargeMinor,detourChargeMinor:amounts.detourChargeMinor,
               grossMinor:amounts.grossMinor,transportMinor:amounts.transportMinor,netMinor:amounts.netMinor,
               baseGeometry:trip.routeGeoJSON,modifiedGeometry:valid.route.geometry,

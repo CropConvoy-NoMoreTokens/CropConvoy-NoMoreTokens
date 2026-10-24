@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { LlmClient } from '../../core/dependencies.js';
 import { idSchema } from '../../core/contracts.js';
 import { abortable } from './async.js';
-import type { HybridQuote } from './contracts.js';
+import type { WeightDistanceQuote } from './contracts.js';
 
 export type Candidate = {orderId:string;tripId:string};
 export type AgentReport = {mode:'live'|'deterministic_fallback';explanation:string};
@@ -18,7 +18,7 @@ After results, return {quoteIds,explanation}. Mention only returned facts; no gl
 First reply protocol: {toolCalls:[{name:"evaluateTrips",arguments:{candidates:[{orderId,tripId}]}}]}.
 Second reply protocol: {quoteIds:[...],explanation:"..."}. Prices are integer LKR minor units.`;
 export const logisticsTools=[{
-  name:'evaluateTrips',description:'Evaluate supplied buyer/trip pairs using real road routing, hard constraints and hybrid pricing.',
+  name:'evaluateTrips',description:'Evaluate supplied buyer/trip pairs using real road routing, hard constraints and quantity-times-distance pricing.',
   parameters:{type:'object',additionalProperties:false,required:['candidates'],properties:{
     candidates:{type:'array',minItems:1,maxItems:6,items:{type:'object',additionalProperties:false,
       required:['orderId','tripId'],properties:{orderId:{type:'string',format:'uuid'},tripId:{type:'string',format:'uuid'}}}},
@@ -27,7 +27,7 @@ export const logisticsTools=[{
 /** Provider adapter normalizes calls to this protocol; execution always remains in our validated dispatcher. */
 export async function investigate(
   candidates:Candidate[], llm:LlmClient, signal:AbortSignal,
-  evaluate:(pairs:Candidate[])=>Promise<{quotes:HybridQuote[];rejections:unknown[]}>,
+  evaluate:(pairs:Candidate[])=>Promise<{quotes:WeightDistanceQuote[];rejections:unknown[]}>,
 ):Promise<AgentReport> {
   const allowed=new Set(candidates.map(c=>c.orderId+':'+c.tripId));
   let didEvaluate=false;

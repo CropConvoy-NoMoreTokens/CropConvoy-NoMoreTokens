@@ -47,10 +47,53 @@ test('PostgreSQL stores routes/quotes across connections and rejects corrupted q
     assert.deepEqual(await repository.getQuote(first.quoteId),first);
     await pool.query(`UPDATE logistics_quotes SET snapshot=jsonb_set(snapshot,'{transportMinor}','1') WHERE id=$1`,[first.quoteId]);
     await assert.rejects(repository.getQuote(first.quoteId),/amounts or ID/);
-    await assert.rejects(pool.query('UPDATE trips SET shipment_per_km_minor=NULL WHERE id=$1',[s.trip.id]),/hybrid_trip_requires_shipment_rate/);
+    await assert.rejects(pool.query('UPDATE trips SET rate_per_kg_km_minor=NULL WHERE id=$1',[s.trip.id]),/weight_distance_trip_requires_rate/);
   }finally {
     await pool.end();
     await admin.query('DROP SCHEMA '+schema+' CASCADE');
     await admin.end();
+  }
+});
+
+test('v1 upgrade preserves old rates, excludes legacy trips and requires an explicit kg-km rate',
+  {skip:!process.env.LOGISTICS_TEST_DATABASE_URL},async()=>{
+  const url=process.env.LOGISTICS_TEST_DATABASE_URL!;
+  const admin=new Pool({connectionString:url});
+  const schema='logistics_upgrade_'+randomUUID().replaceAll('-','');
+  await admin.query('CREATE SCHEMA '+schema);
+  const pool=new Pool({connectionString:url,options:'-c search_path='+schema});
+  try {
+    await pool.query(await readFile(new URL('../../../db/migrations/001_initial.sql',import.meta.url),'utf8'));
+    // Historical migration fields/check names; no conversion of their per-shipment rate.
+    await pool.query(`ALTER TABLE trips ADD COLUMN shipment_per_km_minor bigint;
+      ALTER TABLE trips ADD COLUMN pricing_version text NOT NULL DEFAULT 'detour-v0'
+        CHECK (pricing_version IN ('detour-v0','hybrid-v1'));
+      ALTER TABLE trips ADD CONSTRAINT hybrid_trip_requires_shipment_rate
+        CHECK (pricing_version <> 'hybrid-v1' OR shipment_per_km_minor IS NOT NULL);
+      CREATE TABLE logistics_quotes (id uuid PRIMARY KEY, snapshot jsonb NOT NULL
+        CHECK(snapshot->>'pricingVersion'='hybrid-v1'));`);
+    const s=setup(), t=s.trip;
+    const old={id:t.id,demo_transporter_id:t.demoTransporterId,start_lat:t.start.lat,start_lng:t.start.lng,
+      end_lat:t.end.lat,end_lng:t.end.lng,departure_at:t.departureAt,available_kg:t.availableKg,
+      route_geojson:t.routeGeoJSON,route_distance_m:t.routeDistanceM,route_duration_s:t.routeDurationS,
+      route_provider:t.routeProvider,route_profile:t.routeProfile,corridor_m:t.corridorM,
+      max_extra_distance_m:t.maxExtraDistanceM,max_extra_time_s:t.maxExtraTimeS,
+      base_minor:t.baseMinor,per_km_minor:t.perKmMinor,handling_minor:t.handlingMinor,
+      status:'open',created_at:t.createdAt,shipment_per_km_minor:1000,pricing_version:'hybrid-v1'};
+    await pool.query('INSERT INTO trips SELECT * FROM json_populate_record(NULL::trips,$1::json)',[JSON.stringify(old)]);
+    const oldQuoteId=randomUUID();
+    await pool.query('INSERT INTO logistics_quotes VALUES ($1,$2::jsonb)',[oldQuoteId,JSON.stringify({pricingVersion:'hybrid-v1'})]);
+    await pool.query(await readFile(new URL('./upgrade-hybrid-v1.sql',import.meta.url),'utf8'));
+    const db:Database={async query(sql,values){return pool.query(sql,values);},async ping(){},async close(){}};
+    const repo=createPostgresLogisticsRepository(db);
+    assert.equal((await repo.listTrips()).length,0);
+    const unchanged=(await pool.query('SELECT shipment_per_km_minor,rate_per_kg_km_minor FROM trips WHERE id=$1',[t.id])).rows[0];
+    assert.equal(unchanged.shipment_per_km_minor,'1000');assert.equal(unchanged.rate_per_kg_km_minor,null);
+    await assert.rejects(pool.query("UPDATE trips SET pricing_version='weight-distance-v2' WHERE id=$1",[t.id]),/weight_distance_trip_requires_rate/);
+    await pool.query("UPDATE trips SET pricing_version='weight-distance-v2',rate_per_kg_km_minor=20 WHERE id=$1",[t.id]);
+    assert.equal((await repo.listTrips())[0].ratePerKgKmMinor,20);
+    await assert.rejects(repo.getQuote(oldQuoteId),e=>e instanceof Error&&'code' in e&&e.code==='PRICING_VERSION_CHANGED');
+  }finally {
+    await pool.end();await admin.query('DROP SCHEMA '+schema+' CASCADE');await admin.end();
   }
 });

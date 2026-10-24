@@ -3,17 +3,17 @@ import { measurement, money } from './contracts.js';
 export const fareInputSchema = z.strictObject({
   quantityKg: z.number().int().positive().max(2147483647), pricePerKgMinor: money.positive(),
   baseMinor: money, handlingMinor: money, minNetMinor: money, extraDistanceM: measurement, perKmMinor: money,
-  routeCarryDistanceM: measurement, shipmentPerKmMinor: money, pricingVersion: z.literal('hybrid-v1'),
+  routeCarryDistanceM: measurement, ratePerKgKmMinor: money, pricingVersion: z.literal('weight-distance-v2'),
 });
 function safe(value: number): number {
   if (!Number.isSafeInteger(value)) throw new Error('Money exceeds safe integer bounds');
   return value;
 }
-/** Per-shipment rates; weight constrains capacity and is not a hidden price multiplier. */
+/** Carrying rate is LKR minor units per kg-km; detour rate is minor units per km. */
 export function calculateProceeds(input: z.infer<typeof fareInputSchema>) {
   const v = fareInputSchema.parse(input);
   const grossMinor = safe(v.quantityKg * v.pricePerKgMinor);
-  const shipmentChargeMinor = safe(Math.round(v.routeCarryDistanceM / 1000 * v.shipmentPerKmMinor));
+  const shipmentChargeMinor = safe(Math.round(v.quantityKg * (v.routeCarryDistanceM / 1000) * v.ratePerKgKmMinor));
   const detourChargeMinor = safe(Math.round(v.extraDistanceM / 1000 * v.perKmMinor));
   const transportMinor = safe(safe(safe(v.baseMinor + shipmentChargeMinor) + detourChargeMinor) + v.handlingMinor);
   const netMinor = safe(grossMinor - transportMinor);

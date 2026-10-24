@@ -9,24 +9,24 @@ export const geometrySchema = z.strictObject({
   coordinates: z.array(z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)])).min(2).max(12000),
 });
 // Local additive extension awaiting promotion by P4 into shared contracts.
-export const hybridTripInputSchema = tripInputSchema.extend({
-  shipmentPerKmMinor: money,
-  pricingVersion: z.literal('hybrid-v1'),
+export const weightDistanceTripInputSchema = tripInputSchema.extend({
+  ratePerKgKmMinor: money, // LKR minor units per kg per km; 20 means Rs.0.20/kg/km.
+  pricingVersion: z.literal('weight-distance-v2'),
 });
-export const hybridTripSchema = hybridTripInputSchema.extend({
+export const weightDistanceTripSchema = weightDistanceTripInputSchema.extend({
   id: idSchema, status: z.literal('open'), createdAt: dateSchema,
   routeGeoJSON: geometrySchema, routeDistanceM: measurement.positive(),
   routeDurationS: measurement.positive(), routeProvider: z.string().min(1), routeProfile: z.string().min(1),
 });
 export const listingSchema = listingInputSchema.extend({ id: idSchema, status: z.literal('open'), createdAt: dateSchema });
 export const orderSchema = orderInputSchema.extend({ id: idSchema, status: z.literal('open'), createdAt: dateSchema });
-export type HybridTripInput = z.infer<typeof hybridTripInputSchema>;
-export type HybridTrip = z.infer<typeof hybridTripSchema>;
-export type HybridQuote = QuoteSnapshot & {
-  pricingVersion: 'hybrid-v1'; shipmentPerKmMinor: number; routeCarryDistanceM: number;
+export type WeightDistanceTripInput = z.infer<typeof weightDistanceTripInputSchema>;
+export type WeightDistanceTrip = z.infer<typeof weightDistanceTripSchema>;
+export type WeightDistanceQuote = QuoteSnapshot & {
+  pricingVersion: 'weight-distance-v2'; ratePerKgKmMinor: number; routeCarryDistanceM: number;
   shipmentChargeMinor: number; detourChargeMinor: number; expiresAt: string;
 };
-export const hybridQuoteSchema = z.strictObject({
+export const weightDistanceQuoteSchema = z.strictObject({
   quoteId: idSchema, listingId: idSchema, orderId: idSchema, tripId: idSchema,
   quantityKg: z.number().int().positive().max(2147483647), pricePerKgMinor: money.positive(),
   baseMinor: money, perKmMinor: money, handlingMinor: money,
@@ -37,7 +37,7 @@ export const hybridQuoteSchema = z.strictObject({
   baseDurationS: measurement.positive(), modifiedDurationS: measurement.positive(), extraTimeS: measurement,
   pickupAt: dateSchema, deliveryAt: dateSchema, generatedAt: dateSchema,
   ruleOutcomes: z.record(z.string(), z.boolean()),
-  pricingVersion: z.literal('hybrid-v1'), shipmentPerKmMinor: money,
+  pricingVersion: z.literal('weight-distance-v2'), ratePerKgKmMinor: money,
   routeCarryDistanceM: measurement, shipmentChargeMinor: money, detourChargeMinor: money, expiresAt: dateSchema,
 });
 export const routingResultSchema = z.strictObject({

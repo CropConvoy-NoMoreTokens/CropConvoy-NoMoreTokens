@@ -1,6 +1,6 @@
 import type { Listing, Order, Point } from '../../core/contracts.js';
 import type { RoutingClient } from '../../core/dependencies.js';
-import type { HybridTrip } from './contracts.js';
+import type { WeightDistanceTrip } from './contracts.js';
 import { FeasibilityError, meters } from './geometry.js';
 import { validateRoute } from './routing.js';
 
@@ -10,7 +10,7 @@ export function validateStops(points:Point[], snapped:Point[], toleranceM:number
   if(points.length!==snapped.length) throw new FeasibilityError(['INVALID_SNAPPED_POINTS']);
   if(points.some((p,i)=>meters(p,snapped[i])>toleranceM)) throw new FeasibilityError(['SNAP_TOO_FAR']);
 }
-export function checkShipment(listing:Listing, order:Order, trip:HybridTrip, now:Date) {
+export function checkShipment(listing:Listing, order:Order, trip:WeightDistanceTrip, now:Date) {
   const codes:string[]=[];
   if(listing.status!=='open' || order.status!=='open' || trip.status!=='open') codes.push('SOURCE_NOT_OPEN');
   if(listing.crop!==order.crop) codes.push('CROP_MISMATCH');
@@ -22,7 +22,7 @@ export function checkShipment(listing:Listing, order:Order, trip:HybridTrip, now
   if(codes.length) throw new FeasibilityError(codes);
 }
 export function checkRoad(
-  listing:Listing, order:Order, trip:HybridTrip,
+  listing:Listing, order:Order, trip:WeightDistanceTrip,
   result:Awaited<ReturnType<RoutingClient['route']>>, policy:TimingPolicy=defaultTiming,
 ) {
   const r=validateRoute(result,4);

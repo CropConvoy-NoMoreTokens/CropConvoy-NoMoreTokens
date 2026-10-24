@@ -10,19 +10,22 @@ test('registration stores full road geometry and both rates; no fake route on fa
   const s=setup(),service=createLogisticsService(s.deps,{repository:s.repository});
   const {id,status,createdAt,routeGeoJSON,routeDistanceM,routeDurationS,routeProvider,routeProfile,...input}=s.trip;
   const saved=await service.createTrip(input);
-  assert.notEqual(saved.id,id);assert.deepEqual(saved.routeGeoJSON,routeGeoJSON);assert.equal(saved.shipmentPerKmMinor,1000);
+  assert.notEqual(saved.id,id);assert.deepEqual(saved.routeGeoJSON,routeGeoJSON);assert.equal(saved.ratePerKgKmMinor,20);
   assert.equal((await service.listTrips()).length,2);
   s.deps.routing.route=async()=>{throw new RoutingError('NO_ROAD_ROUTE','No route');};
   await assert.rejects(service.createTrip(input),/No route/);
   assert.equal((await service.listTrips()).length,2);
 });
-test('evaluation saves a hybrid snapshot, returns it to workflow and handles quote expiry',async()=>{
+test('evaluation saves a weight-distance snapshot, returns it to workflow and handles quote expiry',async()=>{
   const s=setup(),service=createLogisticsService(s.deps,{repository:s.repository});
   const signal=new AbortController().signal;
   const result=await service.evaluate(s.market,signal);
   assert.equal(result.options.length,1);
   const q=await service.getQuote(result.options[0].quoteId);
   assert.equal(q.detourChargeMinor,60000);assert.ok(q.shipmentChargeMinor>20000);
+  assert.equal(q.pricingVersion,'weight-distance-v2');
+  assert.equal(q.ratePerKgKmMinor,20);
+  assert.equal(q.shipmentChargeMinor,Math.round(s.listing.quantityKg*q.routeCarryDistanceM/1000*q.ratePerKgKmMinor));
   assert.equal(q.transportMinor,35000+q.shipmentChargeMinor+q.detourChargeMinor);
   assert.equal(q.netMinor,1760000-q.transportMinor);
   assert.deepEqual(q.baseGeometry,s.trip.routeGeoJSON);

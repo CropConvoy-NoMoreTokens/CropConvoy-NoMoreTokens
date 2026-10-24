@@ -27,10 +27,10 @@ test('live trip HTTP endpoints require new tariff and retrieve persisted geometr
   const base='http://127.0.0.1:'+(server.address() as AddressInfo).port;
   const {id,status,createdAt,routeGeoJSON,routeDistanceM,routeDurationS,routeProvider,routeProfile,...input}=s.trip;
   const post=(body:unknown)=>fetch(base+'/api/trips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const legacy={...input} as Partial<typeof input>;delete legacy.shipmentPerKmMinor;delete legacy.pricingVersion;
+  const legacy={...input} as Partial<typeof input>;delete legacy.ratePerKgKmMinor;delete legacy.pricingVersion;
   assert.equal((await post(legacy)).status,422);
   const response=await post(input);assert.equal(response.status,201);
-  const saved=await response.json();assert.equal(saved.data.shipmentPerKmMinor,1000);
+  const saved=await response.json();assert.equal(saved.data.ratePerKgKmMinor,20);
   assert.deepEqual(saved.data.routeGeoJSON,routeGeoJSON);
   const trips=await (await fetch(base+'/api/trips')).json();assert.equal(trips.data.length,2);
 });

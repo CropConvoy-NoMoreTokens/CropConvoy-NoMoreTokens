@@ -2,7 +2,7 @@
 import {randomUUID} from 'node:crypto';
 import type {Listing,Order,MarketResult} from '../../core/contracts.js';
 import type {Dependencies,RoutingClient} from '../../core/dependencies.js';
-import type {HybridTrip,HybridQuote} from './contracts.js';
+import type {WeightDistanceTrip,WeightDistanceQuote} from './contracts.js';
 import type {LogisticsRepository} from './repository.js';
 import {meters} from './geometry.js';
 export function setup(){
@@ -12,12 +12,12 @@ export function setup(){
     pickup:{lng:80.2,lat:7},readyAt:'2026-10-24T00:00:00Z',minNetMinor:1600000,confirmed:true,status:'open',createdAt};
   const order:Order={id:randomUUID(),demoBuyerId:randomUUID(),crop:'tomato',remainingKg:100,pricePerKgMinor:22000,
     delivery:{lng:80.4,lat:7},deadlineAt:'2026-10-24T10:00:00Z',allowsPartial:true,status:'open',createdAt};
-  const trip:HybridTrip={id:randomUUID(),demoTransporterId:randomUUID(),start:{lng:80,lat:7},end:{lng:80.6,lat:7},
+  const trip:WeightDistanceTrip={id:randomUUID(),demoTransporterId:randomUUID(),start:{lng:80,lat:7},end:{lng:80.6,lat:7},
     departureAt:'2026-10-24T01:00:00Z',availableKg:100,corridorM:3000,maxExtraDistanceM:10000,maxExtraTimeS:3600,
-    baseMinor:35000,perKmMinor:10000,shipmentPerKmMinor:1000,handlingMinor:0,pricingVersion:'hybrid-v1',
+    baseMinor:35000,perKmMinor:10000,ratePerKgKmMinor:20,handlingMinor:0,pricingVersion:'weight-distance-v2',
     status:'open',createdAt,routeGeoJSON:{type:'LineString',coordinates:[[80,7],[80.6,7]]},
     routeDistanceM:meters({lng:80,lat:7},{lng:80.6,lat:7}),routeDurationS:3600,routeProvider:'synthetic-test',routeProfile:'driving'};
-  const trips=new Map([[trip.id,structuredClone(trip)]]),quotes=new Map<string,HybridQuote>();
+  const trips=new Map([[trip.id,structuredClone(trip)]]),quotes=new Map<string,WeightDistanceQuote>();
   const repository:LogisticsRepository={
     async listTrips(){return structuredClone([...trips.values()]);},
     async saveTrip(t){trips.set(t.id,structuredClone(t));},
