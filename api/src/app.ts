@@ -19,7 +19,8 @@ export interface AppOptions {
   logisticsForGeneration?: WorkflowOptions['logisticsForGeneration'];
 }
 
-export function createApp(deps: Dependencies, origins: string[], options: AppOptions = {}) {
+// Retain the origins argument for existing callers; CORS now permits every origin.
+export function createApp(deps: Dependencies, _origins: string[], options: AppOptions = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.use((req, res, next) => {
@@ -31,10 +32,7 @@ export function createApp(deps: Dependencies, origins: string[], options: AppOpt
       status: res.statusCode, durationMs: Number(process.hrtime.bigint() - started) / 1e6 })));
     next();
   });
-  app.use(cors({ exposedHeaders: ['X-Request-Id'], origin(origin, callback) {
-    if (!origin || origins.includes(origin)) callback(null, true);
-    else callback(new ApiError(403, 'ORIGIN_NOT_ALLOWED', 'This browser origin is not allowed'));
-  } }));
+  app.use(cors({ origin: '*', exposedHeaders: ['X-Request-Id'] }));
   app.use(express.json({ limit: '64kb' }));
   // Per-process IP limit for the demo; a multi-instance deployment needs a shared store.
   // P2 must configure trust proxy for the verified hosting topology before public deployment.

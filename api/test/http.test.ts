@@ -36,6 +36,20 @@ test('starter endpoints validate requests, expose stubs, and never fabricate rou
   assert.equal((await post('/api/trips', fixture.tripInput)).status, 503);
   assert.equal((await post('/api/plans/generate', { listingId: fixture.ids.listingId })).status, 404);
   assert.equal((await post('/api/plans/' + fixture.ids.planId + '/decision', { decision: 'accept' })).status, 404);
-  assert.equal((await fetch(base + '/health', { headers: { Origin: 'https://unapproved.example' } })).status, 403);
+  const crossOrigin = await fetch(base + '/health', { headers: { Origin: 'https://preview.example' } });
+  assert.equal(crossOrigin.status, 200);
+  assert.equal(crossOrigin.headers.get('Access-Control-Allow-Origin'), '*');
+  assert.match(crossOrigin.headers.get('Access-Control-Expose-Headers') ?? '', /X-Request-Id/i);
+  const preflight = await fetch(base + '/api/auth/login', { method: 'OPTIONS', headers: {
+    Origin: 'https://preview.example', 'Access-Control-Request-Method': 'POST',
+    'Access-Control-Request-Headers': 'authorization,content-type',
+  } });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('Access-Control-Allow-Origin'), '*');
+  assert.match(preflight.headers.get('Access-Control-Allow-Headers') ?? '', /authorization/i);
+  assert.match(preflight.headers.get('Access-Control-Allow-Headers') ?? '', /content-type/i);
+  const anonymous = await fetch(base + '/api/auth/me', { headers: { Origin: 'https://preview.example' } });
+  assert.equal(anonymous.status, 401);
+  assert.equal(anonymous.headers.get('Access-Control-Allow-Origin'), '*');
   assert.equal((await fetch(base + '/missing')).status, 404);
 });

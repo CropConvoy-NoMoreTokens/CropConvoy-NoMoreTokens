@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node --check dist/server.js",
+    "postinstall": "npm run build",
     "start": "node dist/server.js",
     "test": "tsx --test test/*.test.ts src/core/*.test.ts src/modules/*/*.test.ts",
     "db:migrate": "tsx scripts/migrate.ts",

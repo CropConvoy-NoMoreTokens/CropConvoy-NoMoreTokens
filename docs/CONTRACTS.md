@@ -27,7 +27,9 @@ Errors:
 {"error": {"code": "VALIDATION_ERROR", "message": "Check the submitted fields", "fields": [{"path": "quantityKg", "message": "..."}]}}
 ```
 
-Statuses: 400 malformed JSON; 401 missing/invalid session or credentials; 403 role/owner mismatch or unapproved browser origin; 404 missing/inaccessible record; 409 stale/conflicting decision; 413 oversized body; 422 invalid input; 429 rate limit; 503 missing integration/dependency. All responses include X-Request-Id. A valid search with no suitable match is HTTP 200.
+Statuses: 400 malformed JSON; 401 missing/invalid session or credentials; 403 role/owner mismatch; 404 missing/inaccessible record; 409 stale/conflicting decision; 413 oversized body; 422 invalid input; 429 rate limit; 503 missing integration/dependency. All responses include X-Request-Id. A valid search with no suitable match is HTTP 200.
+
+CORS permits every browser origin (`Access-Control-Allow-Origin: *`), exposes X-Request-Id and handles preflights for JSON and Authorization headers. Cookie credentials are not enabled; API access uses bearer tokens. CORS_ORIGINS is retained as a legacy configuration input but no longer restricts origins. Authentication and role/owner checks still apply.
 
 ## Demo authentication
 
