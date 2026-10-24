@@ -105,6 +105,8 @@ export const planSchema = z.strictObject({
   quoteSnapshot: quoteSnapshotSchema, review: reviewResultSchema, trace: z.array(traceEntrySchema),
   expiresAt: dateSchema, createdAt: dateSchema,
   sourceSnapshot: sourceSnapshotSchema, mode: apiModeSchema,
+  // Optional for proposals saved before search completeness was persisted.
+  searchComplete: z.boolean().optional(),
 }).refine(plan => plan.listingId === plan.quoteSnapshot.listingId && plan.orderId === plan.quoteSnapshot.orderId &&
   plan.tripId === plan.quoteSnapshot.tripId && plan.quantityKg === plan.quoteSnapshot.quantityKg &&
   plan.sourceSnapshot.listing.id === plan.listingId && plan.sourceSnapshot.order.id === plan.orderId &&

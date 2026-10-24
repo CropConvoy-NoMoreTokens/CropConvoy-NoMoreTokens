@@ -1939,6 +1939,9 @@
           "live",
           "deterministic_fallback"
         ]
+      },
+      "searchComplete": {
+        "type": "boolean"
       }
     },
     "required": [
@@ -2718,6 +2721,9 @@
                   "live",
                   "deterministic_fallback"
                 ]
+              },
+              "searchComplete": {
+                "type": "boolean"
               }
             },
             "required": [

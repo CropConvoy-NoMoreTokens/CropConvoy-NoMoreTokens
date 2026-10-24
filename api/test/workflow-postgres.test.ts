@@ -44,6 +44,16 @@ test('PostgreSQL stores full plans across a new process and arbitrates concurren
   const saved = await second.getPlan(id);
   const decision = saved.status === 'rejected' ? 'reject' : 'accept';
   assert.deepEqual(await first.decide(id, decision), saved);
+  f.deps.mode = 'live'; f.deps.maxPlanMs = 500;
+  f.deps.llm.complete = async () => new Promise(() => {});
+  const partial = await first.generate(l.id);
+  assert.ok(partial.plan);
+  assert.equal(partial.plan.searchComplete, false);
+  assert.equal((await second.getPlan(partial.plan.id)).searchComplete, false);
+  // Older JSONB reviews remain readable, without inventing a completeness claim.
+  await pool.query("UPDATE plans SET review = review - 'searchComplete' WHERE id = $1", [partial.plan.id]);
+  assert.equal((await second.getPlan(partial.plan.id)).searchComplete, undefined);
+  f.deps.mode = 'deterministic_fallback';
   const expired = await first.generate(l.id); f.setNow('2026-10-25T03:15:00Z');
   await assert.rejects(second.decide(expired.plan!.id, 'accept'), (error: unknown) => (error as { status: number }).status === 409);
   const unchanged = await pool.query('SELECT quantity_kg FROM listings WHERE id=$1', [l.id]);

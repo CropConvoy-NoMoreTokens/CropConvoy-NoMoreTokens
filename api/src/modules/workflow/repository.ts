@@ -12,11 +12,12 @@ export interface PlanRepository {
 const columns = 'id, listing_id, order_id, trip_id, quantity_kg, status, quote_snapshot, review, trace, expires_at, created_at';
 function decode(row: Record<string, unknown>): Plan {
   const stored = row.review as Record<string, unknown>;
-  const { sourceSnapshot, mode, ...review } = stored;
+  const { sourceSnapshot, mode, searchComplete, ...review } = stored;
   const iso = (value: unknown) => value instanceof Date ? value.toISOString() : value;
   return planSchema.parse({ id: row.id, listingId: row.listing_id, orderId: row.order_id, tripId: row.trip_id,
     quantityKg: row.quantity_kg, status: row.status, quoteSnapshot: row.quote_snapshot, review, trace: row.trace,
-    expiresAt: iso(row.expires_at), createdAt: iso(row.created_at), sourceSnapshot, mode });
+    expiresAt: iso(row.expires_at), createdAt: iso(row.created_at), sourceSnapshot, mode,
+    ...(searchComplete === undefined ? {} : { searchComplete }) });
 }
 const conflict = () => new ApiError(409, 'PLAN_CONFLICT', 'Proposal expired or a conflicting decision was already recorded');
 
@@ -54,7 +55,8 @@ export function createPlanRepository(deps: Dependencies): PlanRepository {
       const { rows } = await within(signal, () => deps.db.query(`INSERT INTO plans (${columns})
         VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10,$11) RETURNING ${columns}`,
       [valid.id, valid.listingId, valid.orderId, valid.tripId, valid.quantityKg, valid.status,
-        JSON.stringify(valid.quoteSnapshot), JSON.stringify({ ...valid.review, sourceSnapshot: valid.sourceSnapshot, mode: valid.mode }),
+        JSON.stringify(valid.quoteSnapshot), JSON.stringify({ ...valid.review, sourceSnapshot: valid.sourceSnapshot,
+          mode: valid.mode, searchComplete: valid.searchComplete }),
         JSON.stringify(valid.trace), valid.expiresAt, valid.createdAt]));
       return decode(rows[0]);
     },

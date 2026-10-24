@@ -185,7 +185,8 @@
             "pricingVersion": "weight-distance-v2"
           }
         },
-        "mode": "deterministic_fallback"
+        "mode": "deterministic_fallback",
+        "searchComplete": true
       },
       "alternatives": [],
       "rejections": [],

@@ -134,7 +134,7 @@ export function createWorkflowService(deps: Dependencies, market: MarketReposito
             record('workflow', 'proposal_validated', 'READY_TO_PERSIST');
             try { plan = await plans.save({ id: randomUUID(), listingId, orderId: selected.orderId, tripId: selected.tripId,
               quantityKg: selected.quantityKg, status: 'proposed', quoteSnapshot: selected, review,
-              sourceSnapshot: sources.get(selected.quoteId)!, mode: budget.mode, trace: [...trace],
+              sourceSnapshot: sources.get(selected.quoteId)!, mode: budget.mode, searchComplete: complete, trace: [...trace],
               expiresAt, createdAt: now.toISOString() }, budget.signal); }
             catch (error) {
               if (!budget.signal.aborted) throw error;

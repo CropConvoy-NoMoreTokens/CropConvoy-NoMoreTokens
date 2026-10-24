@@ -26,7 +26,7 @@ npm run dev
 
 Do not overwrite an existing .env. On macOS/Linux use `cp .env.example .env` when creating it for the first time.
 
-Open http://localhost:5173 and choose **Check connection**. API health is http://localhost:3001/health. The starter works without keys or PostgreSQL. `/ready` deliberately returns 503 while the app uses temporary repositories.
+Open http://localhost:5173. The rebased UI defaults to an interactive browser demo with explicitly simulated proposals. To use the backend, set `VITE_DATA_MODE=api` and `VITE_API_BASE_URL=http://localhost:3001` in web/.env, then restart Vite. API health is http://localhost:3001/health. `/ready` deliberately returns 503 while the app uses temporary repositories; real market/logistics generation remains pending those modules.
 
 ## Structure
 
@@ -47,7 +47,7 @@ api/
   test/                               # P4: HTTP/integration checks
 web/
   src/api/client.ts                   # P1: shared browser API helper
-  src/App.tsx                         # P1: role-tab shell and connection check
+  src/App.tsx                         # P1: landing, login and role workspaces
 contracts/                            # P4: fixtures, generated schemas, requests
 docs/
   CONTRACTS.md                        # Team interface agreement

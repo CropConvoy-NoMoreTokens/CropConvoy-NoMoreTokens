@@ -46,7 +46,7 @@ export function createDemoService(storage: Pick<Storage, 'getItem' | 'setItem'> 
       const order = memory.orders.filter(x => x.crop === listing.crop && x.remainingKg >= listing.quantityKg && x.allowsPartial).sort((a, b) => b.pricePerKgMinor - a.pricePerKgMinor)[0];
       const trip = memory.trips.find(x => x.availableKg >= listing.quantityKg);
       const trace: GenerationResult['trace'] = [{ role: 'workflow', action: 'demo_scenario', outcome: 'Illustrative price calculation only. Road, direction and timing feasibility have not been evaluated.' }];
-      const empty: GenerationResult = { outcome: 'no_feasible_plan', plan: null, alternatives: [], rejections: [], trace, searchComplete: false };
+      const empty: GenerationResult = { outcome: 'no_feasible_plan', plan: null, alternatives: [], rejections: [], trace, searchComplete: false, mode: 'demo' };
       if (!order || !trip) return result(empty);
       // Supplied fixture's Rs. 950 transport example, never presented as a road-validated quote.
       const transportMinor = 95000;
@@ -64,7 +64,7 @@ export function createDemoService(storage: Pick<Storage, 'getItem' | 'setItem'> 
       const target = decision === 'accept' ? 'farmer_accepted_pending_confirmations' : 'rejected';
       if (plan.status === target) return result(plan);
       if (plan.status !== 'proposed') throw new ApiError('This proposal already has a different decision.', 409, 'CONFLICT');
-      if (Date.parse(plan.expiresAt) < Date.now()) throw new ApiError('This proposal has expired. Generate a new one.', 409, 'STALE_PLAN');
+      if (Date.parse(plan.expiresAt) <= Date.now()) throw new ApiError('This proposal has expired. Generate a new one.', 409, 'STALE_PLAN');
       plan.status = target; save(); return result(plan);
     },
   };
