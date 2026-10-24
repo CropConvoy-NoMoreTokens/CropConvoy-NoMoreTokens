@@ -2,7 +2,7 @@
 
 Starter for a four-person, six-hour harvest-to-buyer matching prototype. The project is structured so frontend, market/platform, logistics, and workflow work can start simultaneously.
 
-**Current state:** runnable scaffolding, not a completed backend. Listing/order CRUD uses temporary memory in stub mode. Extraction returns missing fields. Trip creation remains an explicit 503 stub. The default generation returns an incomplete empty result while market/logistics are stubs. P4 implements bounded quote review, memory/PostgreSQL plan repositories and safe decisions against injected modules; missing plans return 404. No live model, road provider, PostgreSQL market/logistics wiring, authentication, or deployment is connected.
+**Current state:** P2 market/extraction and P4 advocate/workflow are integrated with the new UI. Listings, orders and selected plans use PostgreSQL when DATABASE_URL is configured. Gemini tool calls and deterministic market fallback flow through bounded advocate/workflow review. P3's logistics service is still a stub in this branch: trip creation returns 503 and generation with buyer candidates returns an explicitly incomplete result until real road quotes are available. Authentication, real transport offers and deployment are not complete.
 
 ## Start locally
 
@@ -26,7 +26,7 @@ npm run dev
 
 Do not overwrite an existing .env. On macOS/Linux use `cp .env.example .env` when creating it for the first time.
 
-Open http://localhost:5173. The rebased UI defaults to an interactive browser demo with explicitly simulated proposals. To use the backend, set `VITE_DATA_MODE=api` and `VITE_API_BASE_URL=http://localhost:3001` in web/.env, then restart Vite. API health is http://localhost:3001/health. `/ready` deliberately returns 503 while the app uses temporary repositories; real market/logistics generation remains pending those modules.
+Open http://localhost:5173. The rebased UI defaults to an interactive browser demo with explicitly simulated proposals. To use the backend, set `VITE_DATA_MODE=api` and `VITE_API_BASE_URL=http://localhost:3001` in web/.env, then restart Vite. API health is http://localhost:3001/health. `/ready` checks the four migrated tables when PostgreSQL is configured and returns 503 in memory mode. Real road-backed generation remains pending P3 logistics.
 
 ## Structure
 
@@ -76,7 +76,7 @@ Each handoff includes a copyable task for a teammate or coding assistant. Start 
 
 ## Validate
 
-From api/: `npm test`, `npm run build`, `npm run contracts:export`, then `node --import tsx src/modules/workflow/export-contracts.ts` for the P4 result schemas until P2 folds them into the existing exporter. Set `P4_TEST_DATABASE_URL` to a disposable local PostgreSQL database to enable the persistence/process-restart integration check.
+From api/: `npm test`, `npm run build`, `npm run contracts:export`. The existing exporter includes P4 quote/plan/generation schemas. Set `P4_TEST_DATABASE_URL` to a disposable local PostgreSQL database to enable persistence/process-restart integration checks. The combined P2/P4 HTTP test requires a local role with CREATE DATABASE permission; it creates and drops only its uniquely named test database and mocks provider/logistics responses.
 
 From web/: `npm run build`.
 

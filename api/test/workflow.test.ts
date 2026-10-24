@@ -65,11 +65,11 @@ test('model unknown IDs and lower-net choices repair once then use code-selected
   const lower = { ...f.quote, quoteId: randomUUID(), netMinor: f.quote.netMinor - 100, transportMinor: f.quote.transportMinor + 100,
     handlingMinor: 100 };
   let calls = 0;
-  f.deps.llm.complete = async () => { calls++; return { tool: 'review_quotes', arguments: { selectedQuoteId: lower.quoteId, requestAlternative: false } }; };
+  f.deps.llm.complete = async () => { calls++; return { name: 'review_quotes', arguments: { selectedQuoteId: lower.quoteId, requestAlternative: false } }; };
   const review = await reviewOptions({ listing: f.listing, quotes: [lower, f.quote] }, f.deps, new AbortController().signal);
   assert.equal(calls, 2); assert.equal(review.selectedQuoteId, f.quote.quoteId); assert.ok(review.reasonCodes.includes('MODEL_FALLBACK'));
   calls = 0;
-  f.deps.llm.complete = async () => { calls++; return { tool: 'review_quotes', arguments: { selectedQuoteId: randomUUID(), requestAlternative: false } }; };
+  f.deps.llm.complete = async () => { calls++; return { name: 'review_quotes', arguments: { selectedQuoteId: randomUUID(), requestAlternative: false } }; };
   const result = await f.workflow().generate(f.listing.id);
   assert.equal(calls, 2); assert.equal(result.plan?.quoteSnapshot.quoteId, f.quote.quoteId);
   assert.equal(result.mode, 'deterministic_fallback'); assert.equal(result.plan?.mode, result.mode);

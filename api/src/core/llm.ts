@@ -50,7 +50,9 @@ export function createGeminiClient(key: string, model: string, baseUrl = 'https:
           responseMimeType: 'application/json', ...(responseJsonSchema ? { responseJsonSchema } : {}),
         }) },
         ...(tools.length ? { tools: [{ functionDeclarations: tools.map(tool => ({
-          name: tool.name, description: tool.description, parameters: tool.parameters,
+          // Callers supply JSON Schema (including Zod $schema/anyOf/format),
+          // rather than Gemini's older OpenAPI Schema subset.
+          name: tool.name, description: tool.description, parametersJsonSchema: tool.parameters,
         })) }], toolConfig: { functionCallingConfig: { mode: 'ANY', allowedFunctionNames: [...names] } } } : {}),
       };
       const response = await fetch(url, { method: 'POST', signal,
