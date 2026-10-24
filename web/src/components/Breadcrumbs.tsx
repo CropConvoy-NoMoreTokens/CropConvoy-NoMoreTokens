@@ -11,6 +11,8 @@ export function Breadcrumbs() {
   const crumbs: Crumb[] = [{ label: 'Home', to: '/' }];
   if (pathname === '/login') {
     crumbs.push({ label: 'Sign in' });
+  } else if (pathname === '/insights') {
+    crumbs.push({ label: 'Insights' });
   } else {
     const role = pathname.match(/^\/app\/(farmer|buyer|transporter)$/)?.[1];
     if (role) {

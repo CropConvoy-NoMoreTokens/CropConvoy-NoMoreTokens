@@ -1,5 +1,7 @@
 # Integration status — 24 October 2026
 
+The dev branch also includes the synthetic-data Insights price/planting extension, served by a separate CUDA-only Python service.
+
 The dev branch integrates sm-fixes proposal history, buyer/driver approvals and workspace tabs with the existing harvest photo upload, Sinhala location lookup and persisted workflow. Farmer listing ownership comes from the authenticated session. Browser request logging remains disabled. The latest main navigation, breadcrumbs, dark theme and inline fallback notices are integrated while preserving the workspace tabs and approval/history screens.
 
 | Area | Integrated behavior | Remaining |
@@ -13,6 +15,16 @@ The dev branch integrates sm-fixes proposal history, buyer/driver approvals and 
 | Database | Ordered migration ledger; initial, demo-auth and logistics migrations required; configured database already has tariff and quote schema | Review future schema/legacy tariff upgrades through migrations |
 | Authentication | PostgreSQL demo sessions, server-confirmed actor IDs, role/owner checks and API-mode login | Private registration and production identity management |
 | Deployment | Render API and Vercel UI guidance | Hosted end-to-end/proxy verification |
+
+## Price-Prediction integration verification
+
+Merged feat/Price-Prediction commit `e50807e` into dev. Both independent production builds passed on Node 24. All 85 API tests passed with PostgreSQL integration enabled and no skips; all 88 frontend tests passed. The marketplace contract export remained unchanged.
+
+Installed the pinned ML dependencies in a temporary Python 3.12 environment. Twenty-two hardware-independent ML tests passed; fifty tests requiring the CUDA fixture were deselected because this Mac has no NVIDIA GPU. Native service startup confirmed predictions return 503 while history remains accessible. GPU inference, training and hosted ML deployment were not verified.
+
+Fixed a cross-platform startup error: training recorded dataset hashes using Windows CRLF bytes, while Git checks out LF. Dataset hashes now use a versioned LF normalization shared by training and serving; both CSVs are verified. The old hashes were confirmed to match exactly the same CSV observations with CRLF. Model/preprocessor bytes, data observations and evaluation scores were not changed. Added integrity, changed-data, unavailable-service and calendar regression tests.
+
+The temporary PostgreSQL cluster and Python environment were cleaned up; hosted records were untouched. Hosted Insights requires a separate CUDA service, its frontend CORS origin, and Vercel VITE_ML_API_BASE_URL pointing to its HTTPS endpoint. The Node Render service does not host predictions. No push or deployment was performed.
 
 ## main integration verification
 

@@ -24,9 +24,10 @@ export function Layout() {
   useEffect(() => { setMenu(false); setSearchOpen(false); if (!location.search.includes('section=')) window.scrollTo({ top: 0, behavior: 'instant' }); document.getElementById('main-content')?.focus({ preventScroll: true }); }, [location.pathname, location.search]);
   useEffect(() => { const handler = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key === 'k') { event.preventDefault(); setSearchOpen(value => !value); } }; window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler); }, []);
   const section = new URLSearchParams(location.search).get('section');
-  const nav = <><Link to="/?section=how-it-works" aria-current={section === 'how-it-works' ? 'page' : undefined}>How it works</Link><Link to="/?section=for-everyone" aria-current={section === 'for-everyone' ? 'page' : undefined}>For everyone</Link><Link to="/?section=faq" aria-current={section === 'faq' ? 'page' : undefined}>FAQs</Link></>;
+  const nav = <><Link to="/?section=how-it-works" aria-current={section === 'how-it-works' ? 'page' : undefined}>How it works</Link><Link to="/?section=for-everyone" aria-current={section === 'for-everyone' ? 'page' : undefined}>For everyone</Link><Link to="/?section=faq" aria-current={section === 'faq' ? 'page' : undefined}>FAQs</Link><Link to="/insights" aria-current={location.pathname === '/insights' ? 'page' : undefined}>Insights</Link></>;
   const pages = [
     { title: 'How it works', description: 'Publish a harvest, find a match, review a proposal.', href: '/?section=how-it-works' },
+    { title: 'Insights', description: 'GPU-accelerated produce price forecasting and planting recommendations.', href: '/insights' },
     { title: 'Farmer workspace', description: 'Harvest, pickup location and estimated proceeds.', href: '/app/farmer' },
     { title: 'Buyer workspace', description: 'Create and review crop orders.', href: '/app/buyer' },
     { title: 'Transporter workspace', description: 'Register a trip, capacity and pricing.', href: '/app/transporter' },
