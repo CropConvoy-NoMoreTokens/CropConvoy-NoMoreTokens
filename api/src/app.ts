@@ -50,3 +50,25 @@ export function createApp(deps: Dependencies, origins: string[], options: AppOpt
   const workflow = createWorkflowService(deps, market, logistics, {
     logisticsForGeneration: options.logisticsForGeneration ?? (options.logistics ? undefined : createLogisticsService),
   });
+  const router = Router();
+  marketRoutes(router, deps, market);
+  logisticsRoutes(router, deps, logistics);
+  workflowRoutes(router, deps, workflow);
+  app.use(router);
+  app.use((_req, _res, next) => next(new ApiError(404, 'NOT_FOUND', 'Endpoint not found')));
+  const errors: ErrorRequestHandler = (error: unknown, _req, res, _next) => {
+    if (error instanceof ZodError) {
+      res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'Check the submitted fields',
+        fields: error.issues.map(issue => ({ path: issue.path.join('.'), message: issue.message })) } });
+      return;
+    }
+    if (error instanceof ApiError) { res.status(error.status).json({ error: { code: error.code, message: error.message } }); return; }
+    const bodyError = error as { type?: string } | null;
+    if (bodyError?.type === 'entity.parse.failed') { res.status(400).json({ error: { code: 'INVALID_JSON', message: 'Request must contain valid JSON' } }); return; }
+    if (bodyError?.type === 'entity.too.large') { res.status(413).json({ error: { code: 'BODY_TOO_LARGE', message: 'Request exceeds 64 KB' } }); return; }
+    console.error(JSON.stringify({ requestId: res.locals.requestId, event: 'request_failed' }));
+    res.status(503).json({ error: { code: 'DEPENDENCY_UNAVAILABLE', message: 'A required service is unavailable' } });
+  };
+  app.use(errors);
+  return app;
+}

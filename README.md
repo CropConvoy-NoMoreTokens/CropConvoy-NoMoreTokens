@@ -2,7 +2,7 @@
 
 Starter for a four-person, six-hour harvest-to-buyer matching prototype. The project is structured so frontend, market/platform, logistics, and workflow work can start simultaneously.
 
-**Current state:** P2 market/extraction and P4 advocate/workflow are integrated with the new UI. Listings, orders and selected plans use PostgreSQL when DATABASE_URL is configured. Gemini tool calls and deterministic market fallback flow through bounded advocate/workflow review. P3's logistics service is still a stub in this branch: trip creation returns 503 and generation with buyer candidates returns an explicitly incomplete result until real road quotes are available. Authentication, real transport offers and deployment are not complete.
+**Current state:** P2 market/extraction, P3 logistics and P4 advocate/workflow are integrated with the role-based UI. PostgreSQL persists listings, orders, trips, authoritative quotes and plans. Generation validates real routing responses, applies the weight-distance-v2 tariff, checks the farmer minimum and preserves bounded-search/fallback status. Acceptance records pending buyer/transporter confirmations, never a booking. Live road generation requires a configured approved ROUTING_BASE_URL; no default road provider or synthetic route fallback is supplied. Authentication and deployed operation are not complete.
 
 ## Start locally
 
@@ -26,7 +26,7 @@ npm run dev
 
 Do not overwrite an existing .env. On macOS/Linux use `cp .env.example .env` when creating it for the first time.
 
-Open http://localhost:5173. The rebased UI defaults to an interactive browser demo with explicitly simulated proposals. To use the backend, set `VITE_DATA_MODE=api` and `VITE_API_BASE_URL=http://localhost:3001` in web/.env, then restart Vite. API health is http://localhost:3001/health. `/ready` checks the four migrated tables when PostgreSQL is configured and returns 503 in memory mode. Real road-backed generation remains pending P3 logistics.
+Open http://localhost:5173. The rebased UI defaults to an interactive browser demo with explicitly simulated proposals. To use the backend, set `VITE_DATA_MODE=api` and `VITE_API_BASE_URL=http://localhost:3001` in web/.env, then restart Vite. API health is http://localhost:3001/health. `/ready` checks the source/plan/quote tables and carrying-rate column when PostgreSQL is configured, and returns 503 for missing migrations or memory mode. Configure ROUTING_BASE_URL and ROUTING_PROFILE in api/.env for real road requests.
 
 ## Structure
 
@@ -76,7 +76,7 @@ Each handoff includes a copyable task for a teammate or coding assistant. Start 
 
 ## Validate
 
-From api/: `npm test`, `npm run build`, `npm run contracts:export`. The existing exporter includes P4 quote/plan/generation schemas. Set `P4_TEST_DATABASE_URL` to a disposable local PostgreSQL database to enable persistence/process-restart integration checks. The combined P2/P4 HTTP test requires a local role with CREATE DATABASE permission; it creates and drops only its uniquely named test database and mocks provider/logistics responses.
+From api/: `npm test`, `npm run build`, `npm run contracts:export`. The existing exporter includes P4 quote/plan/generation schemas. Set `P4_TEST_DATABASE_URL` to a disposable local PostgreSQL database to enable persistence/process-restart integration checks. The combined P2/P3/P4 HTTP test requires a local role with CREATE DATABASE permission; it creates and drops only its uniquely named test database and runs real modules while mocking only external model/routing HTTP responses. Also set LOGISTICS_TEST_DATABASE_URL to enable P3 database/upgrade tests.
 
 From web/: `npm run build`.
 
@@ -86,6 +86,7 @@ For database setup, read [api/db/README.md](api/db/README.md) and run `npm run d
 
 - One listing, one order, one trip per proposal; entire listing quantity, no splitting.
 - LKR minor units: Rs. 220/kg is 22000, not 220. API dates are UTC ISO strings ending in Z; display Asia/Colombo.
+- The weight-distance-v2 fare includes weight × original-route carrying distance × kg-km rate, plus extra-detour rate, base and handling. Legacy rates are never silently converted.
 - Real road geometry is required before any live transport quote. Fixture coordinates are not a verified corridor.
 - Model suggestions cannot override crop, quantity, capacity, date, detour, or net-proceeds rules.
 - Farmer acceptance records pending buyer/transporter confirmations. No payments, stock reservation, live GPS, or secure role authorization is implemented.
