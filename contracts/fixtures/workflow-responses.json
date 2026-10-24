@@ -71,7 +71,13 @@
             "deadline": true,
             "detourDistance": true,
             "detourTime": true
-          }
+          },
+          "ratePerKgKmMinor": 0,
+          "pricingVersion": "weight-distance-v2",
+          "routeCarryDistanceM": 100000,
+          "shipmentChargeMinor": 0,
+          "detourChargeMinor": 60000,
+          "expiresAt": "2026-10-25T03:15:00Z"
         },
         "review": {
           "verdict": "recommend",
@@ -174,7 +180,9 @@
             "routeDistanceM": 60000,
             "routeDurationS": 3600,
             "routeProvider": "synthetic-test-only",
-            "routeProfile": "test"
+            "routeProfile": "test",
+            "ratePerKgKmMinor": 0,
+            "pricingVersion": "weight-distance-v2"
           }
         },
         "mode": "deterministic_fallback"

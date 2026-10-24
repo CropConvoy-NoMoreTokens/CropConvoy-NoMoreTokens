@@ -19,6 +19,8 @@ export function setup() {
     routeDistanceM: 60_000, routeDurationS: 3600, routeProvider: 'synthetic-test-only', routeProfile: 'test' };
   const quote: QuoteSnapshot = { quoteId: fixture.ids.quoteId, listingId: listing.id, orderId: order.id,
     tripId: trip.id, quantityKg: 80, pricePerKgMinor: 22000, baseMinor: 35000, perKmMinor: 10000,
+    ratePerKgKmMinor: 0, pricingVersion: 'weight-distance-v2', routeCarryDistanceM: 100000,
+    shipmentChargeMinor: 0, detourChargeMinor: 60000, expiresAt: '2026-10-25T03:15:00Z',
     handlingMinor: 0, grossMinor: 1760000, transportMinor: 95000, netMinor: 1665000,
     baseGeometry: structuredClone(trip.routeGeoJSON), modifiedGeometry: structuredClone(trip.routeGeoJSON),
     baseDistanceM: 60000, modifiedDistanceM: 66000, extraDistanceM: 6000,

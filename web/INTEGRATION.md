@@ -1,5 +1,7 @@
 # Frontend handoff and backend integration
 
+Integrated on integration/dev-logistics: shared schemas and API mode now support ratePerKgKmMinor, pricingVersion=weight-distance-v2, real stored routes and complete proposal breakdowns. See ../docs/LOCAL-INTEGRATION.md for verified local behavior and startup commands.
+
 ## Run
 
 From web/: `npm ci`, then `npm run dev`. No credentials are needed for the default demo. `npm run build` makes the production dist; `npm run preview -- --host 127.0.0.1` serves it. `npm test` runs the interaction, adapter and conversion checks. Hash routes survive static-host refreshes.

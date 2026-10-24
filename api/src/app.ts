@@ -34,7 +34,7 @@ export function createApp(deps: Dependencies, origins: string[]) {
   // P2 must configure trust proxy for the verified hosting topology before public deployment.
   app.use('/api', rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false,
     handler(_req, res) { res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many requests; try again in a minute' } }); } }));
-  app.get('/health', (_req, res) => reply(res, deps, { status: 'ok', version: '0.1.0', implementation: 'starter' }));
+  app.get('/health', (_req, res) => reply(res, deps, { status: 'ok', version: '0.1.0', implementation: 'integrated-prototype' }));
   app.get('/ready', async (_req, res) => {
     if (deps.persistence !== 'postgres') throw new ApiError(503, 'NOT_READY', 'PostgreSQL is not configured');
     await deps.db.ping();
@@ -42,7 +42,7 @@ export function createApp(deps: Dependencies, origins: string[]) {
   });
   const market = createMarketRepository(deps);
   const logistics = createLogisticsService(deps);
-  const workflow = createWorkflowService(deps, market, logistics);
+  const workflow = createWorkflowService(deps, market, logistics, { logisticsForGeneration: scoped => createLogisticsService(scoped) });
   const router = Router();
   marketRoutes(router, deps, market);
   logisticsRoutes(router, deps, logistics);

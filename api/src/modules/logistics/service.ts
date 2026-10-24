@@ -170,7 +170,7 @@ export function createLogisticsService(deps:Dependencies, options:LogisticsOptio
               baseDurationS:trip.routeDurationS,modifiedDurationS:valid.route.durationS,extraTimeS:valid.extraTimeS,
               pickupAt:valid.pickupAt,deliveryAt:valid.deliveryAt,generatedAt:now.toISOString(),expiresAt:new Date(expiresMs).toISOString(),
               ruleOutcomes:{capacity:true,crop:true,demand:true,partialFill:true,corridor:true,direction:true,
-                simpleRoute:true,snapping:true,readiness:true,deadline:true,detourDistance:true,extraTime:true,providerProfile:true},
+                simpleRoute:true,pickupBeforeDelivery:true,detourTime:true,snapping:true,readiness:true,deadline:true,detourDistance:true,extraTime:true,providerProfile:true},
             });
             await read(repo.saveQuote(q),signal);
             state.results.set(key,{quote:q});
@@ -217,7 +217,7 @@ export function createLogisticsService(deps:Dependencies, options:LogisticsOptio
         const r=state.results.get(c.orderId+':'+c.tripId);
         return r && !r.codes?.some(code=>['ROUTING_UNAVAILABLE','ROUTING_TIMEOUT','INVALID_ROUTING_RESPONSE'].includes(code));
       });
-      const quotes=results.quotes.filter(q=>Date.parse(q.expiresAt)>deps.clock.now().getTime()).sort((a,b)=>b.netMinor-a.netMinor || a.quoteId.localeCompare(b.quoteId));
+      const quotes=results.quotes.filter(q=>market.candidateOrderIds.includes(q.orderId) && Date.parse(q.expiresAt)>deps.clock.now().getTime()).sort((a,b)=>b.netMinor-a.netMinor || a.quoteId.localeCompare(b.quoteId));
       return {options:quotes.map(q=>({orderId:q.orderId,tripId:q.tripId,quoteId:q.quoteId,
         extraDistanceM:q.extraDistanceM,deliveryAt:q.deliveryAt,transportMinor:q.transportMinor})),
         rejections:[...rejections,...results.rejections]};

@@ -185,7 +185,7 @@ test('sources changed during evaluation, closed sources and cached older quotes 
 test('workflow selects the highest-net full snapshot among evaluated quotes and bounds alternatives', async () => {
   const f = setup();
   const better = { ...structuredClone(f.quote), quoteId: randomUUID(), extraDistanceM: 5000,
-    modifiedDistanceM: 65000, transportMinor: 85000, netMinor: 1675000 };
+    modifiedDistanceM: 65000, detourChargeMinor: 50000, transportMinor: 85000, netMinor: 1675000 };
   f.logistics.getQuote = async id => structuredClone(id === better.quoteId ? better : f.quote);
   f.logistics.evaluate = async () => ({ options: [f.quote, better].map(q => ({ orderId: q.orderId,
     tripId: q.tripId, quoteId: q.quoteId, extraDistanceM: q.extraDistanceM, deliveryAt: q.deliveryAt,

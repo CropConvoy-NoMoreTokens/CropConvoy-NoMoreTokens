@@ -32,8 +32,10 @@ export async function investigate(
   const allowed=new Set(candidates.map(c=>c.orderId+':'+c.tripId));
   let didEvaluate=false;
   try {
-    const first=callSchema.parse(await abortable(llm.complete({role:'logistics',system:logisticsSystemPrompt,
-      input:{phase:'select',candidates},tools:logisticsTools,signal}),signal));
+    const raw=await abortable(llm.complete({role:'logistics',system:logisticsSystemPrompt,
+      input:{phase:'select',candidates},tools:logisticsTools,signal}),signal);
+    const normalized=raw as {name?:unknown;arguments?:unknown};
+    const first=callSchema.parse(normalized?.name?{toolCalls:[normalized]}:raw);
     const pairs=first.toolCalls[0].arguments.candidates;
     const keys=pairs.map(c=>c.orderId+':'+c.tripId);
     if(new Set(keys).size!==keys.length || keys.some(k=>!allowed.has(k))) throw new Error('Unknown/duplicate candidate');

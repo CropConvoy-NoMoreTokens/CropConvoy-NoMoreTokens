@@ -18,6 +18,7 @@ export function sourceRejectionCodes(quote: QuoteSnapshot, sources: Plan['source
   const codes = quoteRejectionCodes(listing, quote);
   if (quote.listingId !== listing.id || quote.orderId !== order.id || quote.tripId !== trip.id ||
       listing.crop !== order.crop || quote.pricePerKgMinor !== order.pricePerKgMinor ||
+      quote.ratePerKgKmMinor !== trip.ratePerKgKmMinor || quote.pricingVersion !== trip.pricingVersion ||
       quote.baseMinor !== trip.baseMinor || quote.perKmMinor !== trip.perKmMinor || quote.handlingMinor !== trip.handlingMinor ||
       !isDeepStrictEqual(quote.baseGeometry, trip.routeGeoJSON) || quote.baseDistanceM !== trip.routeDistanceM ||
       quote.baseDurationS !== trip.routeDurationS) codes.push('SOURCE_MISMATCH');

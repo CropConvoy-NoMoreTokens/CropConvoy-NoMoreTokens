@@ -12,31 +12,71 @@
   },
   "extractInput": {
     "text": "I have 80 kg of tomatoes in Dambulla ready tomorrow morning. I need at least Rs. 16,000 after transport.",
-    "localTimeContext": { "now": "2026-10-24T04:30:00Z", "timeZone": "Asia/Colombo" }
+    "localTimeContext": {
+      "now": "2026-10-24T04:30:00Z",
+      "timeZone": "Asia/Colombo"
+    }
   },
   "listingInput": {
     "demoFarmerId": "11111111-1111-4111-8111-111111111111",
-    "crop": "tomato", "quantityKg": 80,
-    "pickup": { "lat": 7.8742, "lng": 80.6511 },
-    "readyAt": "2026-10-25T02:30:00Z", "minNetMinor": 1600000, "confirmed": true
+    "crop": "tomato",
+    "quantityKg": 80,
+    "pickup": {
+      "lat": 7.8742,
+      "lng": 80.6511
+    },
+    "readyAt": "2026-10-25T02:30:00Z",
+    "minNetMinor": 1600000,
+    "confirmed": true
   },
   "orderInput": {
     "demoBuyerId": "22222222-2222-4222-8222-222222222222",
-    "crop": "tomato", "remainingKg": 100,
+    "crop": "tomato",
+    "remainingKg": 100,
     "pricePerKgMinor": 22000,
-    "delivery": { "lat": 7.2906, "lng": 80.6337 },
-    "deadlineAt": "2026-10-25T12:30:00Z", "allowsPartial": true
+    "delivery": {
+      "lat": 7.2906,
+      "lng": 80.6337
+    },
+    "deadlineAt": "2026-10-25T12:30:00Z",
+    "allowsPartial": true
   },
   "tripInput": {
     "demoTransporterId": "33333333-3333-4333-8333-333333333333",
-    "start": { "lat": 7.95, "lng": 80.65 }, "end": { "lat": 7.25, "lng": 80.63 },
-    "departureAt": "2026-10-25T03:00:00Z", "availableKg": 120,
-    "corridorM": 3000, "maxExtraDistanceM": 10000, "maxExtraTimeS": 3600,
-    "baseMinor": 35000, "perKmMinor": 10000, "handlingMinor": 0
+    "start": {
+      "lat": 7.95,
+      "lng": 80.65
+    },
+    "end": {
+      "lat": 7.25,
+      "lng": 80.63
+    },
+    "departureAt": "2026-10-25T03:00:00Z",
+    "availableKg": 120,
+    "corridorM": 3000,
+    "maxExtraDistanceM": 10000,
+    "maxExtraTimeS": 3600,
+    "baseMinor": 35000,
+    "perKmMinor": 10000,
+    "handlingMinor": 0,
+    "ratePerKgKmMinor": 0,
+    "pricingVersion": "weight-distance-v2"
   },
   "fareExample": {
-    "quantityKg": 80, "pricePerKgMinor": 22000, "baseMinor": 35000,
-    "extraDistanceM": 6000, "perKmMinor": 10000, "handlingMinor": 0, "minNetMinor": 1600000,
-    "expected": { "grossMinor": 1760000, "transportMinor": 95000, "netMinor": 1665000, "eligible": true }
+    "quantityKg": 80,
+    "pricePerKgMinor": 22000,
+    "baseMinor": 35000,
+    "extraDistanceM": 6000,
+    "perKmMinor": 10000,
+    "handlingMinor": 0,
+    "minNetMinor": 1600000,
+    "expected": {
+      "grossMinor": 1760000,
+      "transportMinor": 95000,
+      "netMinor": 1665000,
+      "eligible": true
+    },
+    "ratePerKgKmMinor": 0,
+    "pricingVersion": "weight-distance-v2"
   }
 }

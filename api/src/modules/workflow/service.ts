@@ -5,7 +5,7 @@ import { generationResultSchema, logisticsResultSchema, marketResultSchema, quot
 import type { Dependencies } from '../../core/dependencies.js';
 import type { MarketRepository } from '../market/repository.js';
 import { findMarket } from '../market/service.js';
-import type { LogisticsService } from '../logistics/service.js';
+import type { LogisticsService, InstrumentedLogisticsService } from '../logistics/service.js';
 import { deterministicReview, rankedQuotes, reviewOptions } from '../advocate/service.js';
 import { ApiError } from '../../core/errors.js';
 import { createPlanRepository, type PlanRepository } from './repository.js';
@@ -69,7 +69,13 @@ export function createWorkflowService(deps: Dependencies, market: MarketReposito
             const batch: MarketResult = { ...candidates, candidateOrderIds: batches[attempt] };
             const evaluationStartedAt = deps.clock.now().getTime();
             const evaluated = logisticsResultSchema.parse(await within(searchSignal, () => scopedLogistics.evaluate(batch, searchSignal)));
-            for (const pair of [...evaluated.options, ...evaluated.rejections]) {
+            const diagnostics=(scopedLogistics as Partial<InstrumentedLogisticsService>).getRunDiagnostics?.(searchSignal);
+            if (diagnostics) {
+              complete = complete && diagnostics.searchComplete;
+              if (diagnostics.mode === 'deterministic_fallback') budget.markFallback();
+              trace.push(...diagnostics.trace);
+            }
+            for (const pair of evaluated.options) {
               if (!batch.candidateOrderIds.includes(pair.orderId)) throw new Error('UNKNOWN_ORDER_ID');
               combinations.add(`${pair.orderId}:${pair.tripId}`);
             }
@@ -123,7 +129,7 @@ export function createWorkflowService(deps: Dependencies, market: MarketReposito
         if (selected && !budget.signal.aborted) {
           const now = deps.clock.now();
           const expiresAt = new Date(Math.min(now.getTime() + 15 * 60_000,
-            Date.parse(selected.generatedAt) + 15 * 60_000, Date.parse(selected.pickupAt))).toISOString();
+            Date.parse(selected.expiresAt), Date.parse(selected.generatedAt) + 15 * 60_000, Date.parse(selected.pickupAt))).toISOString();
           if (Date.parse(expiresAt) > now.getTime()) {
             record('workflow', 'proposal_validated', 'READY_TO_PERSIST');
             try { plan = await plans.save({ id: randomUUID(), listingId, orderId: selected.orderId, tripId: selected.tripId,

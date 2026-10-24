@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { Pool, type PoolClient } from 'pg';
 import { configureMigrationNetworking, migrationPoolConfig } from './migration-connection.js';
 configureMigrationNetworking();
@@ -10,13 +10,14 @@ try {
   await client.query('BEGIN');
   await client.query("SELECT pg_advisory_xact_lock(26102401)");
   await client.query('CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
-  const name = '001_initial.sql';
-  const exists = await client.query('SELECT name FROM schema_migrations WHERE name = $1', [name]);
-  if (!exists.rowCount) {
-    await client.query(await readFile(new URL('../db/migrations/001_initial.sql', import.meta.url), 'utf8'));
+  const directory = new URL('../db/migrations/', import.meta.url);
+  for (const name of (await readdir(directory)).filter(n => /^\d+.*\.sql$/.test(n)).sort()) {
+    const exists = await client.query('SELECT name FROM schema_migrations WHERE name = $1', [name]);
+    if (exists.rowCount) { console.log('Already applied '+name); continue; }
+    await client.query(await readFile(new URL(name, directory), 'utf8'));
     await client.query('INSERT INTO schema_migrations(name) VALUES ($1)', [name]);
-    console.log(`Applied ${name}`);
-  } else console.log('Initial migration already applied');
+    console.log('Applied '+name);
+  }
   await client.query('COMMIT');
 } catch (error) {
   // Preserve the original error if rollback also fails after a disconnect.

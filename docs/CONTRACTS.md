@@ -90,7 +90,7 @@ GenerationResult: `{outcome, plan, alternatives, rejections, trace, searchComple
 - A maximum 45-second generation deadline is enforced with a wall-clock timer and abort races, including adapters that ignore cancellation. Search uses 90% of the deadline, reserving the remainder for saving validated partial results. Model/routing calls receive AbortSignal through the request-scoped adapters.
 - Hard filters: exact crop, sufficient demand, partial-fill policy, sufficient trip capacity, simple route, pickup before delivery, snap/corridor tolerances, readiness, deadline, detour, minimum net.
 - Confirm interpretation of allowsPartial at kickoff: the plan's core scope requires it enabled for candidate orders. Do not silently broaden policy based on an exact-quantity order.
-- Net = quantity × unit price − transport. Transport = base + round(extra meters / 1000 × per-km rate) + handling. Price only the incremental detour.
+- Net = quantity × unit price − transport. Transport = base + round(quantity kg × routeCarryDistanceM / 1000 × ratePerKgKmMinor) + round(extraDistanceM / 1000 × perKmMinor) + handling. New trips and quotes require pricingVersion=weight-distance-v2; perKmMinor remains the detour rate. Carrying distance follows the original stored road route between pickup/delivery projections, excluding upstream/downstream travel.
 - Plan states: proposed → farmer_accepted_pending_confirmations or rejected. Before acceptance, check expiry and current source records against the quote. Repeated same decision returns same state; conflicting decisions return 409. No demand/capacity decrement.
 
 
@@ -111,3 +111,5 @@ Database and source-repository interfaces currently lack AbortSignal parameters.
 Model adapter output for advocate is the strict normalized tool call `{tool:'review_quotes', arguments:{selectedQuoteId: UUID|null, requestAlternative:boolean}}`. Unknown tool names, unknown/lower-net IDs and invalid JSON receive at most one repair, then code review with `MODEL_FALLBACK`. All explanations/traces are generated from validated observable outcomes, never model reasoning. A model cannot authorize or override a business rule.
 
 Regenerate the reference pack from api/: `npm run contracts:export` then `node --import tsx src/modules/workflow/export-contracts.ts`. The supplemental P4 exporter only extends the generated reference artifact. P2 should add its schema list to the existing exporter and retire the extra command. JSON Schema describes structure; arithmetic and cross-record invariants also run in code.
+
+Integrated result schemas include the kg-km rate, charge breakdown and quote expiry. Plan expiry cannot exceed quote expiry. The consolidated contracts:export command now exports all request/source/quote/plan/generation schemas. See LOCAL-INTEGRATION.md for branch and verification details.

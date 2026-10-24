@@ -9,5 +9,7 @@ export const config = z.object({
   LLM_MODEL: z.string().default(''),
   LLM_BASE_URL: z.string().url().default('https://generativelanguage.googleapis.com'),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
+  ROUTING_BASE_URL: z.preprocess(v => v === '' ? undefined : v, z.string().url().optional()),
+  ROUTING_PROFILE: z.string().default('driving'),
   MAX_PLAN_MS: z.coerce.number().int().min(1000).max(45000).default(45000),
 }).parse(process.env);

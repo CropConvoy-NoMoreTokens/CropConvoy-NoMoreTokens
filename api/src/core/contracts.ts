@@ -24,6 +24,7 @@ export const tripInputSchema = z.strictObject({
   departureAt: dateSchema, availableKg: quantity,
   corridorM: int32.min(1), maxExtraDistanceM: int32, maxExtraTimeS: int32,
   baseMinor: whole, perKmMinor: whole, handlingMinor: whole,
+  ratePerKgKmMinor: whole, pricingVersion: z.literal('weight-distance-v2'),
 });
 export const extractInputSchema = z.strictObject({
   text: z.string().trim().min(1).max(5000),
@@ -85,6 +86,8 @@ export const tripSchema = tripInputSchema.extend({ id: idSchema, status: z.liter
 export const quoteSnapshotSchema = z.strictObject({
   quoteId: idSchema, listingId: idSchema, orderId: idSchema, tripId: idSchema, quantityKg: quantity,
   pricePerKgMinor: positive, baseMinor: whole, perKmMinor: whole, handlingMinor: whole,
+  ratePerKgKmMinor: whole, pricingVersion: z.literal('weight-distance-v2'),
+  routeCarryDistanceM: distance, shipmentChargeMinor: whole, detourChargeMinor: whole, expiresAt: dateSchema,
   grossMinor: whole, transportMinor: whole, netMinor: z.number().int().min(-Number.MAX_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER),
   baseGeometry: lineStringSchema, modifiedGeometry: lineStringSchema,
   baseDistanceM: distance, modifiedDistanceM: distance, extraDistanceM: distance,

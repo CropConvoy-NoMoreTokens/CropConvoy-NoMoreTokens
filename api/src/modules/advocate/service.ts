@@ -14,9 +14,11 @@ export function quoteRejectionCodes(input: ReviewInput['listing'], quote: QuoteS
   if (requiredRules.some(rule => quote.ruleOutcomes[rule] !== true) || Object.values(quote.ruleOutcomes).some(value => !value)) codes.push('HARD_RULE_FAILED');
   const gross = quote.quantityKg * quote.pricePerKgMinor;
   const distanceCharge = Math.round(quote.extraDistanceM / 1000 * quote.perKmMinor);
-  const transport = quote.baseMinor + distanceCharge + quote.handlingMinor;
+  const carryingCharge = Math.round(quote.quantityKg * quote.routeCarryDistanceM / 1000 * quote.ratePerKgKmMinor);
+  const transport = quote.baseMinor + carryingCharge + distanceCharge + quote.handlingMinor;
   const net = gross - transport;
-  if (![gross, distanceCharge, transport, net].every(Number.isSafeInteger) ||
+  if (![gross, carryingCharge, distanceCharge, transport, net].every(Number.isSafeInteger) ||
+      carryingCharge !== quote.shipmentChargeMinor || distanceCharge !== quote.detourChargeMinor ||
       gross !== quote.grossMinor || transport !== quote.transportMinor || net !== quote.netMinor) codes.push('INVALID_MONEY');
   if (quote.extraDistanceM !== Math.max(0, quote.modifiedDistanceM - quote.baseDistanceM) ||
       quote.extraTimeS < Math.max(0, quote.modifiedDurationS - quote.baseDurationS)) codes.push('INVALID_DETOUR');
@@ -45,10 +47,12 @@ export async function reviewOptions(input: ReviewInput, deps: Dependencies, sign
   if (deps.mode !== 'live') return deterministic;
   for (let turn = 0; turn < 2; turn++) {
     try {
-      const output = advocateOutputSchema.parse(await within(signal, () => deps.llm.complete({ role: 'advocate',
+      const raw = await within(signal, () => deps.llm.complete({ role: 'advocate',
         system: advocatePrompt, input: { minimumNetMinor: input.listing.minNetMinor,
           quotes: rankedQuotes(input).map(q => ({ quoteId: q.quoteId, netMinor: q.netMinor })), repair: turn > 0 },
-        tools: advocateTools, signal })));
+        tools: advocateTools, signal }));
+      const call = raw as { name?: unknown; arguments?: unknown };
+      const output = advocateOutputSchema.parse(call?.name ? { tool: call.name, arguments: call.arguments } : raw);
       if (output.arguments.selectedQuoteId !== deterministic.selectedQuoteId) throw new Error('INVALID_SELECTION');
       if (output.arguments.requestAlternative && !deterministic.selectedQuoteId) return {
         ...deterministic, verdict: 'try_alternative', reasonCodes: [...deterministic.reasonCodes, 'ALTERNATIVE_REQUESTED'] };
