@@ -3,8 +3,45 @@ import type { LineString, Point } from '../../core/contracts.js';
 import { ApiError } from '../../core/errors.js';
 import { geometrySchema } from './contracts.js';
 type Coord = [number, number];
+export type FeasibilityField = { path: string; message: string };
+
+export const FEASIBILITY_DESCRIPTIONS: Record<string, string> = {
+  SNAP_TOO_FAR: 'A location pin is too far from an accessible, drivable road (must be within 100 meters). Move the pin closer to a road or select a nearby town.',
+  DETOUR_TOO_LARGE: 'The required detour exceeds the maximum allowed extra distance.',
+  EXTRA_TIME_TOO_LARGE: 'The required detour exceeds the maximum allowed extra driving time.',
+  PRODUCE_NOT_READY: 'The vehicle would arrive at the pickup location before the produce is ready.',
+  DELIVERY_TOO_LATE: 'The delivery would arrive after the buyer deadline.',
+  INSUFFICIENT_CAPACITY: 'The vehicle does not have enough remaining capacity for this harvest.',
+  INSUFFICIENT_DEMAND: 'The order quantity does not match or allow fulfilling this harvest.',
+  CROP_MISMATCH: 'The harvest crop does not match the requested order crop.',
+  PARTIAL_FILL_NOT_ALLOWED: 'This order does not allow partial fulfillment.',
+  TRIP_DEPARTED: 'The scheduled departure time for this trip has already passed.',
+  SOURCE_NOT_OPEN: 'One or more required listings, orders, or trips are no longer available.',
+  SOURCE_EXPIRED: 'This quote or listing has expired.',
+  INVALID_ROUTE: 'No drivable route could be found between the specified points.',
+  AMBIGUOUS_ROUTE: 'The route geometry contains loops, crossings, or overlapping reversals.',
+  ROUTE_TOO_COMPLEX: 'The route geometry is too complex to verify safely.',
+  INVALID_SNAPPED_POINTS: 'Could not snap the stop points to the road network.',
+  ROUTING_PROFILE_CHANGED: 'The road routing profile changed during evaluation.',
+  WRONG_DIRECTION: 'Delivery location must be along the travel direction from the pickup.',
+  PICKUP_TOO_FAR: 'Pickup location is outside the allowable search corridor.',
+  DELIVERY_TOO_FAR: 'Delivery location is outside the allowable search corridor.',
+  AMBIGUOUS_PROJECTION: 'The location projection onto the road route is ambiguous.',
+};
+
 export class FeasibilityError extends ApiError {
-  constructor(public readonly codes: string[]) { super(422, codes[0], 'Transport arrangement fails: ' + codes.join(', ')); }
+  public readonly fields: FeasibilityField[];
+
+  constructor(
+    public readonly codes: string[],
+    detailMessage?: string,
+    fields: FeasibilityField[] = []
+  ) {
+    const codeList = codes.join(', ');
+    const userFriendly = detailMessage || FEASIBILITY_DESCRIPTIONS[codes[0]] || codeList;
+    super(422, codes[0], `${userFriendly} (${codeList})`);
+    this.fields = fields;
+  }
 }
 export function meters(a: Point, b: Point): number {
   return distance([a.lng, a.lat], [b.lng, b.lat], { units: 'meters' });

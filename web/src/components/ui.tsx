@@ -20,7 +20,12 @@ export function Field({ name, label, error, hint, children }: { name: string; la
 }
 export function ErrorNotice({ error, retry }: { error: unknown; retry?: () => void }) {
   if (!error) return null;
-  return <div className="notice notice-error" role="alert"><WarningCircle size={22} /><div><strong>{error instanceof ApiError && error.status === 409 ? 'This proposal needs attention' : 'Something needs your attention'}</strong><p>{error instanceof Error ? error.message : String(error)}</p>{error instanceof ApiError && error.requestId && <small>Reference: {error.requestId}</small>}{retry && <button className="text-button" onClick={retry}>Try again</button>}</div></div>;
+  const title = error instanceof ApiError && error.code === 'SNAP_TOO_FAR'
+    ? 'Location pin is too far from a road'
+    : error instanceof ApiError && error.status === 409
+      ? 'This proposal needs attention'
+      : 'Something needs your attention';
+  return <div className="notice notice-error" role="alert"><WarningCircle size={22} /><div><strong>{title}</strong><p>{error instanceof Error ? error.message : String(error)}</p>{error instanceof ApiError && error.requestId && <small>Reference: {error.requestId}</small>}{retry && <button className="text-button" onClick={retry}>Try again</button>}</div></div>;
 }
 export function ErrorSummary({ errors }: { errors: Record<string, string> }) {
   const items = Object.entries(errors);

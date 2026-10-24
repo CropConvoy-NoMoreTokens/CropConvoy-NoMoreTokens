@@ -22,3 +22,35 @@ test('rejects loops, crossings and overlapping reversal',()=>{
     [[80,7],[80.4,7],[80.2,7]],
   ])assert.throws(()=>assertSimpleRoute({type:'LineString',coordinates:coordinates as [number,number][]}),/AMBIGUOUS/);
 });
+test('validateStops passes when points are within snap tolerance', async () => {
+  const { validateStops } = await import('./feasibility.js');
+  const points = [{ lng: 80.0, lat: 7.0 }, { lng: 80.5, lat: 7.0 }];
+  const snapped = [{ lng: 80.0001, lat: 7.0 }, { lng: 80.5001, lat: 7.0 }];
+  assert.doesNotThrow(() => validateStops(points, snapped, 100));
+});
+test('validateStops provides precise stop label, measured distance, and field path on SNAP_TOO_FAR', async () => {
+  const { validateStops } = await import('./feasibility.js');
+  const { FeasibilityError } = await import('./geometry.js');
+  const points = [{ lng: 81.228104, lat: 7.38629 }, { lng: 79.8612, lat: 6.9271 }];
+  // Snapped start is ~151m away
+  const snapped = [{ lng: 81.229468, lat: 7.386345 }, { lng: 79.8612, lat: 6.9271 }];
+  try {
+    validateStops(points, snapped, 100, [
+      { label: 'Start location', fieldPrefix: 'start' },
+      { label: 'Destination', fieldPrefix: 'end' },
+    ]);
+    assert.fail('Should have thrown FeasibilityError');
+  } catch (e) {
+    assert.ok(e instanceof FeasibilityError);
+    assert.equal(e.code, 'SNAP_TOO_FAR');
+    assert.equal(e.status, 422);
+    assert.ok(e.message.includes('Start location pin is 151m from the nearest road'));
+    assert.ok(e.message.includes('(SNAP_TOO_FAR)'));
+    assert.deepEqual(e.fields, [
+      {
+        path: 'start.lat',
+        message: 'Start location pin is 151m away from the nearest road (maximum allowed is 100m). Move the pin closer to a drivable road on the map or select a nearby town.',
+      },
+    ]);
+  }
+});
